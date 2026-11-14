@@ -1,0 +1,14 @@
+[package]
+name = "s1-ffmpeg-pipe"
+description = "SPIKE S1 — Rust render RGBA → stdin FFmpeg (LGPL) → MP4. Code thử nghiệm, sẽ bỏ."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+tiny-skia.workspace = true
+anyhow.workspace = true
+spike-common = { path = "../spike-common" }
+
+[lints]
+workspace = true

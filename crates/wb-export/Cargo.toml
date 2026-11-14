@@ -1,0 +1,13 @@
+[package]
+name = "wb-export"
+description = "Điều khiển FFmpeg sidecar, render song song theo đoạn, ghép file, phụ đề."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+authors.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

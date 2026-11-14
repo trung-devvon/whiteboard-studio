@@ -1,0 +1,13 @@
+[package]
+name = "wb-dsl"
+description = "Biên dịch DSL rút gọn của AI → Project; kiểm tra và tự sửa lỗi."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+authors.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

@@ -1,0 +1,30 @@
+[package]
+name = "wb-model"
+description = "Kiểu dữ liệu dùng chung: Project, Scene, Element, Stroke, DrawPlan. Nguồn sinh kiểu TypeScript."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+# Bật để derive specta::Type và sinh file TypeScript (src/bindings/model.ts)
+specta = ["dep:specta", "dep:specta-typescript", "dep:specta-serde"]
+
+[dependencies]
+serde.workspace = true
+specta = { workspace = true, optional = true }
+specta-typescript = { workspace = true, optional = true }
+specta-serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[[bin]]
+name = "gen-bindings"
+path = "src/bin/gen_bindings.rs"
+required-features = ["specta"]
+
+[lints]
+workspace = true

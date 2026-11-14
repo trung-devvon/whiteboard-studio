@@ -1,0 +1,13 @@
+[package]
+name = "wb-ai"
+description = "Client LLM: Gemini, Claude, OpenAI, OpenAI-compatible (Ollama, LM Studio…)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+authors.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

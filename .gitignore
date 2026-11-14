@@ -1,0 +1,71 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Kế hoạch riêng — không đẩy lên git
+not_push_git
+
+# Rust
+/target
+/src-tauri/target
+
+# Công cụ tải về (FFmpeg…) — tải lại theo docs/giai-doan-0/README.md
+/tools
+
+# Model AI — tải khi cần, không commit
+/models
+
+# Đầu ra spike & gói WASM sinh tự động
+/spikes/out
+/spikes/*/pkg
+
+# Dự án video & gói chia sẻ của người dùng (không thuộc mã nguồn)
+*.wbproj/
+*.wbz
+
+# Video/âm thanh xuất ra khi thử nghiệm ở bất kỳ đâu (tài nguyên thật để trong assets/ sẽ được cho phép riêng)
+*.mp4
+*.webm
+*.mov
+*.wav
+*.mp3
+!assets/**/*.wav
+!assets/**/*.mp3
+
+# Bí mật: API key, khoá ký cập nhật, chứng chỉ — TUYỆT ĐỐI không commit
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12
+*.keystore
+
+# Cài đặt cục bộ của công cụ
+.claude/settings.local.json
+
+# Rác hệ điều hành
+Thumbs.db
+desktop.ini
+ehthumbs.db

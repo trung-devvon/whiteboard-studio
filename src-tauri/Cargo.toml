@@ -1,0 +1,29 @@
+[package]
+name = "whiteboard-studio"
+description = "Whiteboard Studio — ứng dụng desktop (vỏ Tauri mỏng, logic nằm trong crates/)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+authors.workspace = true
+
+[lib]
+# Hậu tố `_lib` cần thiết trên Windows để tên lib không trùng tên bin
+# (https://github.com/rust-lang/cargo/issues/8519)
+name = "whiteboard_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde.workspace = true
+serde_json.workspace = true
+wb-model.workspace = true
+# TẠM — Giai đoạn 0 (S2/S5), xoá ở Giai đoạn 3
+s2-wasm-preview = { path = "../spikes/s2-wasm-preview" }
+
+[lints]
+workspace = true

@@ -1,0 +1,13 @@
+[package]
+name = "wb-vision"
+description = "Pipeline ảnh A–E: phân loại, rút xương, vector hoá, ONNX (feature)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+authors.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

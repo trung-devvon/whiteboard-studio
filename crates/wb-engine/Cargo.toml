@@ -1,0 +1,13 @@
+[package]
+name = "wb-engine"
+description = "Engine render tất định: evaluate(t) + compositor tiny-skia. KHÔNG I/O."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+authors.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

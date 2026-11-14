@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust (fmt · clippy · test · wasm)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Định dạng
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --workspace
+      - name: Engine biên dịch được sang WASM (không lén phụ thuộc I/O)
+        run: cargo build --target wasm32-unknown-unknown -p wb-engine -p wb-model -p wb-text -p wb-planner -p wb-timing -p wb-dsl -p s2-wasm-preview
+      - name: Kiểu TypeScript sinh từ Rust khớp với code
+        shell: bash
+        run: |
+          cargo run -p wb-model --features specta --bin gen-bindings
+          git diff --exit-code -- src/bindings
+
+  licenses:
+    name: Giấy phép & lỗ hổng (cargo-deny)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  frontend:
+    name: Frontend (typecheck)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Cài wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - name: Dựng gói WASM cho Spike Lab
+        shell: bash
+        run: npm run build:wasm
+      - run: npm ci
+      - run: npx tsc --noEmit

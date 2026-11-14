@@ -1,0 +1,16 @@
+[package]
+name = "s4-glyph-skeleton"
+description = "SPIKE S4 — chữ tiếng Việt: shaping → raster glyph → rút xương → tách dấu → thứ tự viết → reveal. Code thử nghiệm."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+tiny-skia.workspace = true
+rustybuzz.workspace = true
+unicode-normalization.workspace = true
+anyhow.workspace = true
+spike-common = { path = "../spike-common" }
+
+[lints]
+workspace = true

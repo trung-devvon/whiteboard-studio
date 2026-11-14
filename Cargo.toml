@@ -1,0 +1,69 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "spikes/*", "src-tauri"]
+exclude = ["spikes/out"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+authors = ["Whiteboard Studio contributors"]
+
+[workspace.dependencies]
+# nội bộ
+wb-model = { path = "crates/wb-model" }
+wb-vision = { path = "crates/wb-vision" }
+wb-text = { path = "crates/wb-text" }
+wb-planner = { path = "crates/wb-planner" }
+wb-timing = { path = "crates/wb-timing" }
+wb-engine = { path = "crates/wb-engine" }
+wb-audio = { path = "crates/wb-audio" }
+wb-export = { path = "crates/wb-export" }
+wb-dsl = { path = "crates/wb-dsl" }
+wb-ai = { path = "crates/wb-ai" }
+
+# bên ngoài (chỉ giấy phép cho phép — xem deny.toml)
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "2"
+tiny-skia = "0.12"
+ttf-parser = "0.25"
+rustybuzz = "0.20"
+image = { version = "0.25", default-features = false, features = ["png"] }
+postcard = { version = "1", features = ["use-std"] }
+specta = { version = "=2.0.0-rc.28", features = ["derive"] }
+specta-typescript = "0.0.15"
+specta-serde = "0.0.15"
+unicode-normalization = "0.1"
+
+[workspace.lints.rust]
+unsafe_code = "warn"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+
+# Build dev nhưng tối ưu thư viện phụ thuộc → thuật toán ảnh/video chạy nhanh khi debug
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
+
+# Dùng cho spike đo hiệu năng: nhanh như release nhưng build nhanh hơn
+[profile.bench-fast]
+inherits = "release"
+lto = "thin"
+codegen-units = 16
+panic = "unwind"
+strip = false
+
+[workspace.lints.cargo]
+# Các dependency khai báo sẵn cho Giai đoạn 1 — chưa dùng ở Giai đoạn 0
+unused_workspace_dependencies = "allow"
