@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "settings": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "seed": 1,
+    "background": "#FFFFFF",
+    "draw_speed": 1400,
+    "hand": "../../../assets/hands/placeholder-marker"
+  },
+  "scenes": [
+    {
+      "id": "s01",
+      "name": "a01-ngoi-nha",
+      "elements": [
+        {
+          "id": "img",
+          "kind": {
+            "type": "image",
+            "src": "../images/A/a01-ngoi-nha.svg"
+          },
+          "transform": {
+            "x": 160,
+            "y": 90,
+            "w": 1600,
+            "h": 900
+          },
+          "timing": {
+            "gap_before_ms": 400,
+            "settle_ms": 300
+          }
+        }
+      ],
+      "tail_ms": 800
+    },
+    {
+      "id": "s02",
+      "name": "a02-bong-den",
+      "elements": [
+        {
+          "id": "img",
+          "kind": {
+            "type": "image",
+            "src": "../images/A/a02-bong-den.svg"
+          },
+          "transform": {
+            "x": 160,
+            "y": 90,
+            "w": 1600,
+            "h": 900
+          },
+          "timing": {
+            "gap_before_ms": 400,
+            "settle_ms": 300
+          }
+        }
+      ],
+      "tail_ms": 800
+    },
+    {
+      "id": "s03",
+      "name": "a03-so-do",
+      "elements": [
+        {
+          "id": "img",
+          "kind": {
+            "type": "image",
+            "src": "../images/A/a03-so-do.svg"
+          },
+          "transform": {
+            "x": 160,
+            "y": 90,
+            "w": 1600,
+            "h": 900
+          },
+          "timing": {
+            "gap_before_ms": 400,
+            "settle_ms": 300
+          }
+        }
+      ],
+      "tail_ms": 800
+    },
+    {
+      "id": "s04",
+      "name": "a04-xe-dap",
+      "elements": [
+        {
+          "id": "img",
+          "kind": {
+            "type": "image",
+            "src": "../images/A/a04-xe-dap.svg"
+          },
+          "transform": {
+            "x": 160,
+            "y": 90,
+            "w": 1600,
+            "h": 900
+          },
+          "timing": {
+            "gap_before_ms": 400,
+            "settle_ms": 300
+          }
+        }
+      ],
+      "tail_ms": 800
+    },
+    {
+      "id": "s05",
+      "name": "a05-cay",
+      "elements": [
+        {
+          "id": "img",
+          "kind": {
+            "type": "image",
+            "src": "../images/A/a05-cay.svg"
+          },
+          "transform": {
+            "x": 160,
+            "y": 90,
+            "w": 1600,
+            "h": 900
+          },
+          "timing": {
+            "gap_before_ms": 400,
+            "settle_ms": 300
+          }
+        }
+      ],
+      "tail_ms": 800
+    },
+    {
+      "id": "s06",
+      "name": "a06-mat-cuoi",
+      "elements": [
+        {
+          "id": "img",
+          "kind": {
+            "type": "image",
+            "src": "../images/A/a06-mat-cuoi.svg"
+          },
+          "transform": {
+            "x": 160,
+            "y": 90,
+            "w": 1600,
+            "h": 900
+          },
+          "timing": {
+            "gap_before_ms": 400,
+            "settle_ms": 300
+          }
+        }
+      ],
+      "tail_ms": 800
+    },
+    {
+      "id": "s07",
+      "name": "a07-banh-rang",
+      "elements": [
+        {
+          "id": "img",
+          "kind": {
+            "type": "image",
+            "src": "../images/A/a07-banh-rang.svg"
+          },
+          "transform": {
+            "x": 160,
+            "y": 90,
+            "w": 1600,
+            "h": 900
+          },
+          "timing": {
+            "gap_before_ms": 400,
+            "settle_ms": 300
+          }
+        }
+      ],
+      "tail_ms": 800
+    },
+    {
+      "id": "s08",
+      "name": "a08-may-mat-troi",
+      "elements": [
+        {
+          "id": "img",
+          "kind": {
+            "type": "image",
+            "src": "../images/A/a08-may-mat-troi.svg"
+          },
+          "transform": {
+            "x": 160,
+            "y": 90,
+            "w": 1600,
+            "h": 900
+          },
+          "timing": {
+            "gap_before_ms": 400,
+            "settle_ms": 300
+          }
+        }
+      ],
+      "tail_ms": 800
+    },
+    {
+      "id": "s09",
+      "name": "a09-coc-ca-phe",
+      "elements": [
+        {
+          "id": "img",
+          "kind": {
+            "type": "image",
+            "src": "../images/A/a09-coc-ca-phe.svg"
+          },
+          "transform": {
+            "x": 160,
+            "y": 90,
+            "w": 1600,
+            "h": 900
+          },
+          "timing": {
+            "gap_before_ms": 400,
+            "settle_ms": 300
+          }
+        }
+      ],
+      "tail_ms": 800
+    },
+    {
+      "id": "s10",
+      "name": "a10-ten-lua",
+      "elements": [
+        {
+          "id": "img",
+          "kind": {
+            "type": "image",
+            "src": "../images/A/a10-ten-lua.svg"
+          },
+          "transform": {
+            "x": 160,
+            "y": 90,
+            "w": 1600,
+            "h": 900
+          },
+          "timing": {
+            "gap_before_ms": 400,
+            "settle_ms": 300
+          }
+        }
+      ],
+      "tail_ms": 800
+    }
+  ]
+}

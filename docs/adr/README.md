@@ -10,7 +10,7 @@ Mẫu: [`0000-mau.md`](0000-mau.md).
 | 0002 | **Một engine Rust** cho Preview (WASM) và Export (native); DrawPlan qua IPC nhị phân | ✅ Chấp nhận — [0002](0002-mot-engine-hai-dich.md) |
 | 0003 | react-konva cho Editor | Đề xuất (chốt ở GĐ 3) |
 | 0004 | Cargo workspace nhiều crate; `wb-engine` không I/O | ✅ Chấp nhận (đã dựng) |
-| 0005 | Thời gian = ms số nguyên; toạ độ = px khung 1920×1080 | Đề xuất (chốt ở GĐ 1) |
+| 0005 | Thời gian = ms số nguyên; toạ độ = px khung 1920×1080 | ✅ Chấp nhận (dùng trong `wb-model` v1) |
 | 0006 | Dự án = thư mục `*.wbproj` | Đề xuất |
 | 0007 | **FFmpeg sidecar bản LGPL**, thứ tự encoder nvenc → amf → qsv → openh264 | ✅ Chấp nhận — [0007](0007-ffmpeg-lgpl-sidecar.md) |
 | 0008 | Kiểu TS sinh tự động bằng specta | ✅ Chấp nhận (đã chạy) |
@@ -25,5 +25,6 @@ Mẫu: [`0000-mau.md`](0000-mau.md).
 | 0017 | Windows trước, macOS ở GĐ 8 | ✅ Chấp nhận |
 | 0018 | AI: key người dùng + OpenAI-compatible cho AI local | ✅ Chấp nhận |
 | 0019 | Bàn tay: 1 ảnh chụp + 1 SVG + Trình chỉnh bàn tay | ✅ Chấp nhận |
+| 0020 | Rút xương bằng **Guo–Hall** thay Zhang–Suen (giữ nét chéo 45°) | ✅ Chấp nhận — [0020](0020-guo-hall-thinning.md) |
 
 Chi tiết các ADR "Đề xuất" hiện nằm trong kế hoạch (`not_push_git/07-rui-ro-giay-phep-va-quyet-dinh.md`) và sẽ được tách thành file khi chốt.

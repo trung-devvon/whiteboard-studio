@@ -17,6 +17,18 @@ Chỉ chấp nhận giấy phép dùng thương mại được (chính sách "Gi
 | Mali | github.com/google/fonts — ofl/mali | SIL OFL 1.1 (`OFL-Mali.txt`) | ✅ (kiểm chứng S4) |
 | Itim | github.com/google/fonts — ofl/itim | SIL OFL 1.1 (`OFL-Itim.txt`) | ✅ (kiểm chứng S4) |
 
-## Bàn tay, tiếng bút, icon, nền
+## Bàn tay
 
-_Chưa có — sẽ thêm ở Giai đoạn 1–2 (xem `not_push_git/09-bo-ban-tay-va-tai-nguyen.md`)._
+| Tên | Nguồn | Giấy phép | Ghi chú |
+|---|---|---|---|
+| `hands/placeholder-marker` (SVG) | Tự vẽ cho dự án | self-made | Tay TẠM — sẽ thay bằng ảnh tay chụp thật |
+
+## Ảnh test
+
+| Tên | Nguồn | Giấy phép |
+|---|---|---|
+| `tests/fixtures/images/A/a01…a10.svg` | Tự vẽ (code SVG) cho dự án | self-made |
+
+## Tiếng bút, icon, nền
+
+_Chưa có — Giai đoạn 2–4 (xem `not_push_git/09-bo-ban-tay-va-tai-nguyen.md`)._

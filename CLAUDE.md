@@ -2,7 +2,8 @@
 
 - **Talk to the user in Vietnamese.** Code identifiers in English; code comments and internal docs (`docs/`) may be Vietnamese. `README.md` and this file stay in English.
 - The master plan lives in `not_push_git/` (files 00–09, git-ignored). Accepted decisions: `docs/adr/`. Progress: `not_push_git/06-lo-trinh-va-tieu-chi-hoan-thanh.md`.
-- Current phase: **Phase 0 mostly done** (`docs/giai-doan-0/`) → next is Phase 1 (core engine + CLI). Open decision: TTS provider (ADR-0012).
+- Current phase: **Phase 1 done on branch `phase-1-core-engine`** (`docs/giai-doan-1/`) → next is Phase 2 (handwritten text with `harfrust` + `skrifa`, flat-color images, SVG icons). Open decision: TTS provider (ADR-0012).
+- Skeletonization uses **Guo–Hall**, not Zhang–Suen (ADR-0020). Run `UPDATE_GOLDEN=1 cargo test -p wb-cli` only when a visual change is intended, and review the PNGs in `tests/golden/`.
 
 ## Architecture rules
 - Logic lives in `crates/wb-*`; `src-tauri/` is a thin IPC shell only.

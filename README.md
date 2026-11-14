@@ -4,7 +4,7 @@
 
 Built with Rust, Tauri v2 and React. Offline-first: image analysis, stroke planning, rendering and encoding all run locally.
 
-> **Status: early development (Phase 0 — foundations & technical validation).** Not usable yet. See the [Phase 0 report](docs/giai-doan-0/ket-qua-spike.md).
+> **Status: early development — Phase 1 (core engine + CLI) complete.** The command-line renderer turns line-art images into hand-drawn MP4 videos; the desktop editor is not built yet. Reports: [Phase 0](docs/giai-doan-0/ket-qua-spike.md) · [Phase 1](docs/giai-doan-1/README.md).
 
 ---
 
@@ -26,6 +26,7 @@ Built with Rust, Tauri v2 and React. Offline-first: image analysis, stroke plann
 | WebAssembly preview in WebView2 | ~1.5 ms per frame at 960×540 with 2,000 strokes |
 | Vietnamese handwriting | 9/9 test lines pass on three OFL fonts, ≥ 99.5% reveal coverage |
 | Binary IPC (Rust → UI) | 5 MB draw plan transferred in ~27 ms (4.7× faster than JSON) |
+| End-to-end render (Phase 1) | 10-scene line-art demo, 51 s of 1080p30 video exported in ~17 s; final frames match the source images |
 
 Details and methodology: [`docs/giai-doan-0/ket-qua-spike.md`](docs/giai-doan-0/ket-qua-spike.md).
 
@@ -81,6 +82,15 @@ npm run tauri dev
 
 FFmpeg is not committed. Download a **win64 LGPL** build from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases) and extract it into `tools/ffmpeg/`, or set `WB_FFMPEG` to an `ffmpeg` executable.
 
+### Command-line renderer
+
+```bash
+cargo build -p wb-cli --profile bench-fast
+target/bench-fast/wb quick path/to/drawing.png -o video.mp4        # one image → video
+target/bench-fast/wb render tests/fixtures/projects/demo-line-art.json -o demo.mp4
+target/bench-fast/wb analyze path/to/drawing.png -o debug.png      # inspect stroke order
+```
+
 ### Common commands
 
 | Task | Command |
@@ -97,7 +107,7 @@ FFmpeg is not committed. Download a **win64 LGPL** build from [BtbN/FFmpeg-Build
 | Phase | Scope |
 |---|---|
 | 0 | Foundations & technical spikes ✅ |
-| 1 | Core engine + CLI: line art → MP4 |
+| 1 | Core engine + CLI: line art → MP4 ✅ |
 | 2 | Handwritten text, flat-color images, SVG icons |
 | 3 | Desktop editor |
 | 4 | Narration & sync → **MVP / alpha** |

@@ -2,6 +2,7 @@
 
 - **Trạng thái:** Chấp nhận
 - **Ngày:** 2026-11-14
+- **Cập nhật 2026-11-15:** (1) bước rút xương dùng **Guo–Hall** (ADR-0020); (2) `rustybuzz`/`ttf-parser` đã ngừng bảo trì (RUSTSEC-2026-0206/0192) → `wb-text` dùng **`harfrust`** (shaping) + **`skrifa`** (đọc font).
 
 ## Bối cảnh
 Font thường lưu *đường bao* chữ; đi theo đường bao thì tay vẽ vòng quanh mép chữ. Cần đường tâm + thứ tự viết tự nhiên + dấu thanh viết sau.

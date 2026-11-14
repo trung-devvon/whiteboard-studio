@@ -31,8 +31,11 @@ thiserror = "2"
 tiny-skia = "0.12"
 ttf-parser = "0.25"
 rustybuzz = "0.20"
-image = { version = "0.25", default-features = false, features = ["png"] }
-postcard = { version = "1", features = ["use-std"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+rstar = "0.14"
+resvg = "0.50"
+clap = { version = "4", features = ["derive"] }
+postcard = { version = "1", default-features = false, features = ["use-std"] }
 specta = { version = "=2.0.0-rc.28", features = ["derive"] }
 specta-typescript = "0.0.15"
 specta-serde = "0.0.15"

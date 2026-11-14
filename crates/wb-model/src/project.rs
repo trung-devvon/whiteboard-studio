@@ -1,0 +1,228 @@
+//! Tài liệu dự án (Project Document) — phiên bản đầu (Giai đoạn 1), chỉ đủ cho ảnh line-art.
+//! Toạ độ: px của khung tham chiếu 1920×1080. Thời gian: mili-giây số nguyên.
+//! Các trường mới luôn có `#[serde(default)]` để file cũ mở được trên app mới.
+
+use serde::{Deserialize, Serialize};
+
+/// Toàn bộ dự án video.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct Project {
+    pub schema_version: u32,
+    #[serde(default)]
+    pub settings: ProjectSettings,
+    pub scenes: Vec<Scene>,
+}
+
+/// Cài đặt chung của dự án.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(default)]
+pub struct ProjectSettings {
+    /// Độ phân giải xuất (px). Mặc định 1920×1080.
+    pub width: u32,
+    pub height: u32,
+    pub fps: u32,
+    /// Hạt giống cho mọi yếu tố ngẫu nhiên → video tất định.
+    pub seed: u32,
+    /// Màu nền bảng, dạng `#RRGGBB`.
+    pub background: String,
+    /// Tốc độ vẽ danh nghĩa (px/giây ở khung tham chiếu).
+    pub draw_speed: f32,
+    /// Bàn tay: đường dẫn tới thư mục chứa `hand.json` (tương đối so với file dự án). `None` = không vẽ tay.
+    pub hand: Option<String>,
+}
+
+impl Default for ProjectSettings {
+    fn default() -> Self {
+        Self {
+            width: 1920,
+            height: 1080,
+            fps: 30,
+            seed: 1,
+            background: "#FFFFFF".into(),
+            draw_speed: 1400.0,
+            hand: None,
+        }
+    }
+}
+
+/// Một phân cảnh.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct Scene {
+    pub id: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Ghi đè màu nền dự án cho scene này.
+    #[serde(default)]
+    pub background: Option<String>,
+    pub elements: Vec<Element>,
+    /// Thời gian giữ hình sau khi vẽ xong element cuối (ms).
+    #[serde(default = "default_tail_ms")]
+    pub tail_ms: u32,
+}
+
+fn default_tail_ms() -> u32 {
+    1500
+}
+
+/// Một đối tượng trên scene.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct Element {
+    pub id: String,
+    pub kind: ElementKind,
+    pub transform: Transform,
+    #[serde(default)]
+    pub timing: Timing,
+}
+
+/// Loại element. Giai đoạn 1 chỉ có ảnh.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ElementKind {
+    Image {
+        /// Đường dẫn ảnh (tương đối so với file dự án).
+        src: String,
+        #[serde(default)]
+        pipeline: PipelineChoice,
+        #[serde(default)]
+        params: VisionParams,
+    },
+}
+
+/// Pipeline xử lý ảnh (xem kế hoạch File 02).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(rename_all = "snake_case")]
+pub enum PipelineChoice {
+    /// Tự chọn (Giai đoạn 1: luôn là line-art).
+    #[default]
+    Auto,
+    LineArt,
+}
+
+/// Tham số trích xuất nét người dùng chỉnh được.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(default)]
+pub struct VisionParams {
+    /// Cạnh dài tối đa của ảnh khi phân tích (px). Lớn = chi tiết hơn, chậm hơn.
+    pub working_size: u32,
+    /// Độ nhạy nhận nét mực (0..1). Cao = bắt cả nét mờ.
+    pub sensitivity: f32,
+    /// Nét ngắn hơn ngưỡng này (px ở độ phân giải làm việc) thành "chấm vụn".
+    pub min_stroke_length: f32,
+}
+
+impl Default for VisionParams {
+    fn default() -> Self {
+        Self {
+            working_size: 1400,
+            sensitivity: 0.5,
+            min_stroke_length: 6.0,
+        }
+    }
+}
+
+/// Khung đặt element (px khung tham chiếu). Ảnh được **co vừa** khung, giữ tỉ lệ, căn giữa.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct Transform {
+    pub x: f32,
+    pub y: f32,
+    pub w: f32,
+    pub h: f32,
+}
+
+impl Transform {
+    /// Tính (tỉ lệ, dịch x, dịch y) để đặt ảnh `src_w×src_h` vừa khung, giữ tỉ lệ, căn giữa.
+    pub fn fit(&self, src_w: u32, src_h: u32) -> (f32, f32, f32) {
+        let s = (self.w / src_w as f32).min(self.h / src_h as f32);
+        let ox = self.x + (self.w - src_w as f32 * s) / 2.0;
+        let oy = self.y + (self.h - src_h as f32 * s) / 2.0;
+        (s, ox, oy)
+    }
+}
+
+/// Thời gian của element (Giai đoạn 1: nối tiếp nhau; marker lời thoại ở Giai đoạn 4).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(default)]
+pub struct Timing {
+    /// Nghỉ trước khi bắt đầu vẽ (ms).
+    pub gap_before_ms: u32,
+    /// Ép tổng thời gian vẽ (ms). `None` = tự tính theo độ dài nét.
+    pub duration_ms: Option<u32>,
+    /// Thời gian "hoàn thiện": phần chưa được nét phủ hiện dần cho khớp ảnh gốc (ms).
+    pub settle_ms: u32,
+}
+
+impl Default for Timing {
+    fn default() -> Self {
+        Self {
+            gap_before_ms: 300,
+            duration_ms: None,
+            settle_ms: 300,
+        }
+    }
+}
+
+/// Đọc màu `#RRGGBB` / `#RRGGBBAA` → RGBA.
+pub fn parse_hex_color(s: &str) -> Option<[u8; 4]> {
+    let h = s.strip_prefix('#')?;
+    let byte = |i: usize| u8::from_str_radix(h.get(i..i + 2)?, 16).ok();
+    match h.len() {
+        6 => Some([byte(0)?, byte(2)?, byte(4)?, 255]),
+        8 => Some([byte(0)?, byte(2)?, byte(4)?, byte(6)?]),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn minimal_project_json_uses_defaults() {
+        let json = r#"{
+            "schema_version": 1,
+            "scenes": [{ "id": "s1", "elements": [{
+                "id": "img1",
+                "kind": { "type": "image", "src": "a.png" },
+                "transform": { "x": 0, "y": 0, "w": 1920, "h": 1080 }
+            }]}]
+        }"#;
+        let p: Project = serde_json::from_str(json).unwrap();
+        assert_eq!(p.settings.fps, 30);
+        assert_eq!(p.scenes[0].tail_ms, 1500);
+        let el = &p.scenes[0].elements[0];
+        assert_eq!(el.timing.gap_before_ms, 300);
+        let ElementKind::Image { pipeline, params, .. } = &el.kind;
+        assert_eq!(*pipeline, PipelineChoice::Auto);
+        assert_eq!(params.working_size, 1400);
+    }
+
+    #[test]
+    fn fit_keeps_aspect_and_centers() {
+        let t = Transform {
+            x: 100.0,
+            y: 0.0,
+            w: 1000.0,
+            h: 500.0,
+        };
+        let (s, ox, oy) = t.fit(200, 200); // ảnh vuông vào khung 2:1
+        assert_eq!(s, 2.5);
+        assert_eq!(oy, 0.0);
+        assert_eq!(ox, 100.0 + 250.0);
+    }
+
+    #[test]
+    fn hex_colors() {
+        assert_eq!(parse_hex_color("#FF8000"), Some([255, 128, 0, 255]));
+        assert_eq!(parse_hex_color("#00000080"), Some([0, 0, 0, 128]));
+        assert_eq!(parse_hex_color("red"), None);
+    }
+}

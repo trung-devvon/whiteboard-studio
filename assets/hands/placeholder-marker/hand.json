@@ -1,0 +1,11 @@
+{
+  "id": "placeholder-marker",
+  "name": "Bút dạ (tay tạm, SVG)",
+  "file": "hand.svg",
+  "kind": "marker",
+  "handedness": "right",
+  "anchor": [30, 34],
+  "display_height": 887,
+  "license": "self-made",
+  "author": "Whiteboard Studio contributors"
+}

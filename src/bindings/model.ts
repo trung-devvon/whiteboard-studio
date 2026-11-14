@@ -11,9 +11,28 @@ export type DrawPlan = {
 	stats: PlanStats,
 };
 
+/**  Một đối tượng trên scene. */
+export type Element = {
+	id: string,
+	kind: ElementKind,
+	transform: Transform,
+	timing?: Timing,
+};
+
+/**  Loại element. Giai đoạn 1 chỉ có ảnh. */
+export type ElementKind = { type: "image"; 
+/**  Đường dẫn ảnh (tương đối so với file dự án). */
+src: string; pipeline?: PipelineChoice; params?: VisionParams };
+
+/**  Pipeline xử lý ảnh (xem kế hoạch File 02). */
+export type PipelineChoice = 
+/**  Tự chọn (Giai đoạn 1: luôn là line-art). */
+"auto" | "line_art";
+
 /**  Thống kê dùng cho `wb-timing` (ngân sách thời gian). */
 export type PlanStats = {
 	stroke_count: number,
+	dot_count: number,
 	outline_length: number | null,
 	fill_length: number | null,
 	/**  Tổng quãng đường nhấc bút giữa các nét (px). */
@@ -26,6 +45,8 @@ export type PlannedStroke = {
 	points: PointW[],
 	/**  Độ dài cung (px), tính sẵn. */
 	length: number | null,
+	/**  Chấm vụn hiện ra khi bút đi ngang (không bắt tay đi tới từng chấm). */
+	dots?: StrokeDot[],
 };
 
 /**  Một điểm trên đường tâm nét, kèm bán kính cọ `w` tại điểm đó (px). */
@@ -35,5 +56,73 @@ export type PointW = {
 	w: number | null,
 };
 
+/**  Toàn bộ dự án video. */
+export type Project = {
+	schema_version: number,
+	settings?: ProjectSettings,
+	scenes: Scene[],
+};
+
+/**  Cài đặt chung của dự án. */
+export type ProjectSettings = {
+	/**  Độ phân giải xuất (px). Mặc định 1920×1080. */
+	width?: number,
+	height?: number,
+	fps?: number,
+	/**  Hạt giống cho mọi yếu tố ngẫu nhiên → video tất định. */
+	seed?: number,
+	/**  Màu nền bảng, dạng `#RRGGBB`. */
+	background?: string,
+	/**  Tốc độ vẽ danh nghĩa (px/giây ở khung tham chiếu). */
+	draw_speed?: number | null,
+	/**  Bàn tay: đường dẫn tới thư mục chứa `hand.json` (tương đối so với file dự án). `None` = không vẽ tay. */
+	hand?: string | null,
+};
+
+/**  Một phân cảnh. */
+export type Scene = {
+	id: string,
+	name?: string | null,
+	/**  Ghi đè màu nền dự án cho scene này. */
+	background?: string | null,
+	elements: Element[],
+	/**  Thời gian giữ hình sau khi vẽ xong element cuối (ms). */
+	tail_ms?: number,
+};
+
+/**  Chấm vụn gắn vào một nét lớn: hiện ra khi mũi bút đi qua vị trí `at` (độ dài cung, px) của nét đó. */
+export type StrokeDot = {
+	at: number | null,
+	point: PointW,
+};
+
 /**  Loại nét — quyết định bút/cọ, tốc độ và thứ tự vẽ. */
 export type StrokeKind = "outline" | "fill" | "text" | "diacritic";
+
+/**  Thời gian của element (Giai đoạn 1: nối tiếp nhau; marker lời thoại ở Giai đoạn 4). */
+export type Timing = {
+	/**  Nghỉ trước khi bắt đầu vẽ (ms). */
+	gap_before_ms?: number,
+	/**  Ép tổng thời gian vẽ (ms). `None` = tự tính theo độ dài nét. */
+	duration_ms?: number | null,
+	/**  Thời gian "hoàn thiện": phần chưa được nét phủ hiện dần cho khớp ảnh gốc (ms). */
+	settle_ms?: number,
+};
+
+/**  Khung đặt element (px khung tham chiếu). Ảnh được **co vừa** khung, giữ tỉ lệ, căn giữa. */
+export type Transform = {
+	x: number | null,
+	y: number | null,
+	w: number | null,
+	h: number | null,
+};
+
+/**  Tham số trích xuất nét người dùng chỉnh được. */
+export type VisionParams = {
+	/**  Cạnh dài tối đa của ảnh khi phân tích (px). Lớn = chi tiết hơn, chậm hơn. */
+	working_size?: number,
+	/**  Độ nhạy nhận nét mực (0..1). Cao = bắt cả nét mờ. */
+	sensitivity?: number | null,
+	/**  Nét ngắn hơn ngưỡng này (px ở độ phân giải làm việc) thành "chấm vụn". */
+	min_stroke_length?: number | null,
+};

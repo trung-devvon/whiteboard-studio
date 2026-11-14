@@ -8,6 +8,8 @@ publish.workspace = true
 authors.workspace = true
 
 [dependencies]
+wb-model.workspace = true
+rstar.workspace = true
 
 [lints]
 workspace = true

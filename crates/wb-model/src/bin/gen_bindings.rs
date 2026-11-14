@@ -5,7 +5,10 @@
 
 use specta::Types;
 use specta_typescript::Typescript;
-use wb_model::{DrawPlan, PlanStats, PlannedStroke, PointW, StrokeKind};
+use wb_model::{
+    DrawPlan, Element, ElementKind, PipelineChoice, PlanStats, PlannedStroke, PointW, Project, ProjectSettings, Scene,
+    StrokeDot, StrokeKind, Timing, Transform, VisionParams,
+};
 
 fn main() {
     let types = Types::default()
@@ -13,7 +16,17 @@ fn main() {
         .register::<StrokeKind>()
         .register::<PlannedStroke>()
         .register::<PlanStats>()
-        .register::<DrawPlan>();
+        .register::<DrawPlan>()
+        .register::<StrokeDot>()
+        .register::<Project>()
+        .register::<ProjectSettings>()
+        .register::<Scene>()
+        .register::<Element>()
+        .register::<ElementKind>()
+        .register::<PipelineChoice>()
+        .register::<VisionParams>()
+        .register::<Transform>()
+        .register::<Timing>();
 
     let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../src/bindings/model.ts");
     std::fs::create_dir_all(out.parent().unwrap()).unwrap();
