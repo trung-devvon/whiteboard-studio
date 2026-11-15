@@ -1,0 +1,25 @@
+[package]
+name = "wb-compile"
+description = "Biên dịch dự án: phân tích ảnh/chữ → lớp vẽ + DrawPlan → gói Bundle / Engine. Dùng chung cho CLI và app."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+authors.workspace = true
+
+[dependencies]
+wb-model.workspace = true
+wb-vision.workspace = true
+wb-text.workspace = true
+wb-planner.workspace = true
+wb-timing.workspace = true
+wb-engine.workspace = true
+image.workspace = true
+resvg.workspace = true
+tiny-skia.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+
+[lints]
+workspace = true

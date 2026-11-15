@@ -124,7 +124,7 @@ impl HandSprite {
 }
 
 /// Đổi cỡ theo hệ số `s`. Thu nhỏ mạnh: gộp khối f×f (trung bình, đúng với premultiplied) rồi bicubic.
-fn resample(src: &Pixmap, s: f32) -> Pixmap {
+pub(crate) fn resample(src: &Pixmap, s: f32) -> Pixmap {
     let tw = ((src.width() as f32 * s).round() as u32).max(1);
     let th = ((src.height() as f32 * s).round() as u32).max(1);
     if tw == src.width() && th == src.height() {

@@ -11,6 +11,9 @@ authors.workspace = true
 wb-model.workspace = true
 wb-timing.workspace = true
 tiny-skia.workspace = true
+serde.workspace = true
+postcard.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true

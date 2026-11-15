@@ -10,6 +10,8 @@ use wb_text::{Align, Font, TextLayout, layout_text};
 
 /// Font mặc định đóng gói cùng app (OFL, có đủ dấu tiếng Việt).
 pub const DEFAULT_FONT: &str = "assets/fonts/PatrickHand-Regular.ttf";
+/// Như [`DEFAULT_FONT`] nhưng tính từ trong thư mục `assets/`.
+pub const DEFAULT_FONT_IN_ASSETS: &str = "fonts/PatrickHand-Regular.ttf";
 
 /// Tìm font: đường dẫn người dùng (tương đối `base_dir`) hoặc font mặc định trong `assets/`
 /// (tìm ngược lên từ `base_dir` rồi từ thư mục hiện tại).

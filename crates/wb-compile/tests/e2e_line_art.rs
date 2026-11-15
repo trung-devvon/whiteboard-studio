@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 use tiny_skia::{Color, FilterQuality, Pixmap, PixmapPaint, Transform};
-use wb_cli::analyze::ContentKind;
+use wb_compile::analyze::ContentKind;
 use wb_engine::pixmap_from_rgba;
 use wb_model::ElementKind;
 use wb_vision::classify::ImageClass;
@@ -47,8 +47,8 @@ fn every_fixture_is_covered_by_its_strokes() {
     let files = fixtures();
     assert_eq!(files.len(), 10, "kỳ vọng 10 ảnh mẫu line-art");
     for f in files {
-        let img = wb_cli::load_image(&f).unwrap();
-        let a = wb_cli::analyze_image(&img, &wb_cli::ImageOptions::default());
+        let img = wb_compile::load_image(&f).unwrap();
+        let a = wb_compile::analyze_image(&img, &wb_compile::ImageOptions::default());
         let name = f.file_name().unwrap().to_string_lossy();
         assert_eq!(
             a.kind,
@@ -64,7 +64,7 @@ fn every_fixture_is_covered_by_its_strokes() {
 #[test]
 fn final_frame_of_each_scene_matches_source_image() {
     let project = root().join("tests/fixtures/projects/demo-line-art.json");
-    let mut c = wb_cli::compile(&project, Some(640)).unwrap();
+    let mut c = wb_compile::compile(&project, Some(640)).unwrap();
     let k = 640.0 / wb_model::REFERENCE_WIDTH;
     let ends: Vec<f64> = c.engine.timeline().scenes.iter().map(|s| s.end_ms - 1.0).collect();
     for (si, t) in ends.into_iter().enumerate() {
@@ -74,7 +74,7 @@ fn final_frame_of_each_scene_matches_source_image() {
         let ElementKind::Image { src, .. } = &el.kind else {
             panic!("demo chỉ có ảnh")
         };
-        let img = wb_cli::load_image(&project.parent().unwrap().join(src)).unwrap();
+        let img = wb_compile::load_image(&project.parent().unwrap().join(src)).unwrap();
         let src_pm = pixmap_from_rgba(img.width(), img.height(), img.as_raw()).unwrap();
         let (s, ox, oy) = el.transform.fit(img.width(), img.height());
         let mut expected = Pixmap::new(got.width(), got.height()).unwrap();
@@ -99,7 +99,7 @@ fn final_frame_of_each_scene_matches_source_image() {
 #[test]
 fn golden_frames_mid_drawing() {
     let project = root().join("tests/fixtures/projects/demo-line-art.json");
-    let mut c = wb_cli::compile(&project, Some(480)).unwrap();
+    let mut c = wb_compile::compile(&project, Some(480)).unwrap();
     let update = std::env::var("UPDATE_GOLDEN").is_ok_and(|v| v == "1");
     let dir = root().join("tests/golden");
     let picks: Vec<(usize, f64)> = vec![(0, 0.4), (0, 0.8), (2, 0.5), (7, 0.6)];

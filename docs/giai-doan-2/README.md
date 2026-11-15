@@ -42,7 +42,7 @@ Mỗi ảnh giờ có thể gồm **nhiều lớp vẽ** nối tiếp; lớp tr�
 - Người dùng đổi được: `pipeline` (`auto|line_art|color|photo|vector`), `style` (`auto|sketch|sketch_then_color|color_brush`), `background` (`auto|keep|remove`), `params.brush_size`.
 
 ### SVG / icon (Nhóm E)
-- `wb-cli::vector` — path có `stroke` **dùng thẳng làm đường đi tay** (bán kính = nửa độ dày nét); path có `fill` → lớp tô bằng cọ. SVG không có nét nào → xử lý như ảnh màu.
+- `wb-cli::vector` (nay ở `wb-compile::vector`) — path có `stroke` **dùng thẳng làm đường đi tay** (bán kính = nửa độ dày nét); path có `fill` → lớp tô bằng cọ. SVG không có nét nào → xử lý như ảnh màu.
 - Lớp mực rasterize từ chính SVG trên nền trong suốt → khung cuối đúng từng điểm ảnh. 10 ảnh mẫu A giờ đi theo path: **độ phủ 100%**, phân tích ~15 ms (trước ~85 ms).
 
 ### Chữ viết tay (`wb-text`)

@@ -19,11 +19,14 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
 serde.workspace = true
 serde_json.workspace = true
+anyhow.workspace = true
 wb-model.workspace = true
-# TẠM — Giai đoạn 0 (S2/S5), xoá ở Giai đoạn 3
-s2-wasm-preview = { path = "../spikes/s2-wasm-preview" }
+wb-project.workspace = true
+wb-compile.workspace = true
+wb-export.workspace = true
 
 [lints]
 workspace = true

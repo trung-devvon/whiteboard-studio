@@ -49,7 +49,4 @@ ignore = [
     { id = "RUSTSEC-2026-0371", reason = "zbus_names: phụ thuộc gián tiếp của Tauri (Linux D-Bus)" },
     { id = "RUSTSEC-2026-0370", reason = "zvariant: phụ thuộc gián tiếp của tauri-plugin-opener (Linux D-Bus)" },
     { id = "RUSTSEC-2026-0372", reason = "zvariant_derive: phụ thuộc gián tiếp của tauri-plugin-opener (Linux D-Bus)" },
-    # Chỉ spike S4 dùng. wb-text (Giai đoạn 2) sẽ dùng harfrust + skrifa thay thế — xoá 2 dòng này khi xoá spikes/.
-    { id = "RUSTSEC-2026-0206", reason = "rustybuzz: chỉ dùng trong spikes/s4 — thay bằng harfrust ở Giai đoạn 2" },
-    { id = "RUSTSEC-2026-0192", reason = "ttf-parser: chỉ dùng trong spikes/s4 — thay bằng skrifa ở Giai đoạn 2" },
 ]

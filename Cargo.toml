@@ -1,7 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "spikes/*", "src-tauri"]
-exclude = ["spikes/out"]
+members = ["crates/*", "src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
@@ -18,6 +17,8 @@ wb-text = { path = "crates/wb-text" }
 wb-planner = { path = "crates/wb-planner" }
 wb-timing = { path = "crates/wb-timing" }
 wb-engine = { path = "crates/wb-engine" }
+wb-compile = { path = "crates/wb-compile" }
+wb-project = { path = "crates/wb-project" }
 wb-audio = { path = "crates/wb-audio" }
 wb-export = { path = "crates/wb-export" }
 wb-dsl = { path = "crates/wb-dsl" }
@@ -29,9 +30,7 @@ serde_json = "1"
 anyhow = "1"
 thiserror = "2"
 tiny-skia = "0.12"
-ttf-parser = "0.25"
-rustybuzz = "0.20"
-# Giai đoạn 2: thay rustybuzz/ttf-parser (ngừng bảo trì) — shaping + đọc đường bao glyph
+# Chữ: shaping + đọc đường bao glyph (thay rustybuzz/ttf-parser đã ngừng bảo trì)
 harfrust = "0.16"
 skrifa = "0.50"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
@@ -62,7 +61,7 @@ opt-level = 3
 panic = "abort"
 strip = true
 
-# Dùng cho spike đo hiệu năng: nhanh như release nhưng build nhanh hơn
+# Build nhanh gần như release (CLI thử nghiệm, gói WASM Player)
 [profile.bench-fast]
 inherits = "release"
 lto = "thin"

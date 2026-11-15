@@ -36,9 +36,8 @@ not_push_git
 # Model AI — tải khi cần, không commit
 /models
 
-# Đầu ra spike & gói WASM sinh tự động
-/spikes/out
-/spikes/*/pkg
+# Gói WASM Player sinh tự động (npm run build:wasm)
+/src/wasm/pkg
 
 # Dự án video & gói chia sẻ của người dùng (không thuộc mã nguồn)
 *.wbproj/
@@ -64,6 +63,7 @@ not_push_git
 
 # Cài đặt cục bộ của công cụ
 .claude/settings.local.json
+.claude/launch.json
 
 # Rác hệ điều hành
 Thumbs.db

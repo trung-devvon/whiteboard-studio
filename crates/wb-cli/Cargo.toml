@@ -7,14 +7,12 @@ rust-version.workspace = true
 publish.workspace = true
 authors.workspace = true
 
-[lib]
-path = "src/lib.rs"
-
 [[bin]]
 name = "wb"
 path = "src/main.rs"
 
 [dependencies]
+wb-compile.workspace = true
 wb-model.workspace = true
 wb-vision.workspace = true
 wb-text.workspace = true

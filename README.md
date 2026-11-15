@@ -4,7 +4,7 @@
 
 Built with Rust, Tauri v2 and React. Offline-first: image analysis, stroke planning, rendering and encoding all run locally.
 
-> **Status: early development — Phase 2 (handwriting, color images, SVG) complete.** The command-line renderer turns line art, color illustrations, photos, SVG icons and Vietnamese handwritten text into hand-drawn MP4 videos; the desktop editor is not built yet. Reports: [Phase 0](docs/giai-doan-0/ket-qua-spike.md) · [Phase 1](docs/giai-doan-1/README.md) · [Phase 2](docs/giai-doan-2/README.md).
+> **Status: early development — Phase 3 (desktop editor) in progress.** The command-line renderer turns line art, color illustrations, photos, SVG icons and Vietnamese handwritten text into hand-drawn MP4 videos. The first editor build can create and save projects, arrange scenes and elements on a canvas, preview with the WebAssembly player and export MP4. Reports: [Phase 0](docs/giai-doan-0/ket-qua-spike.md) · [Phase 1](docs/giai-doan-1/README.md) · [Phase 2](docs/giai-doan-2/README.md) · [Phase 3](docs/giai-doan-3/README.md).
 
 ---
 
@@ -49,7 +49,10 @@ React + TypeScript UI ──(Tauri IPC: JSON · binary · channels)──► thi
 | `wb-text` | Shaping (harfrust), glyph outlines (skrifa) → strokes, Vietnamese diacritic ordering, line wrapping |
 | `wb-planner` | Stroke ordering, smoothing, zig-zag brush hatching, user-defined draw regions |
 | `wb-timing` | Narration-aware timeline solver and speed control |
-| `wb-engine` | Deterministic renderer (no I/O, WASM-compatible) |
+| `wb-engine` | Deterministic renderer (no I/O, WASM-compatible); serializable compiled `Bundle` |
+| `wb-compile` | Project compiler: analyzes images/text into draw layers and builds the `Bundle` (shared by CLI and app) |
+| `wb-project` | `.wbproj` project folders: atomic save, autosave & crash recovery, asset import, schema migration |
+| `wb-player` | WebAssembly player for the in-app preview (wraps `wb-engine`) |
 | `wb-audio` | TTS providers, alignment, sound effects, mixing |
 | `wb-export` | FFmpeg orchestration, chunked parallel rendering, subtitles |
 | `wb-dsl` / `wb-ai` | AI director: compact DSL compiler and LLM providers |
@@ -63,7 +66,6 @@ Architecture decisions are recorded as ADRs in [`docs/adr/`](docs/adr/README.md)
 crates/      Rust core libraries (wb-*)
 src-tauri/   Tauri application shell
 src/         React frontend (src/bindings/ is generated from Rust — do not edit)
-spikes/      Phase 0 prototypes (temporary)
 docs/        ADRs and phase reports
 tests/       Test fixtures (OFL fonts, sample images, golden frames)
 assets/      Bundled resources and CREDITS.md
@@ -112,7 +114,7 @@ target/bench-fast/wb analyze path/to/image.png -o debug.png        # image type,
 | 0 | Foundations & technical spikes ✅ |
 | 1 | Core engine + CLI: line art → MP4 ✅ |
 | 2 | Handwritten text, color images & photos (brush reveal), SVG icons ✅ |
-| 3 | Desktop editor |
+| 3 | Desktop editor (in progress) |
 | 4 | Narration & sync → **MVP / alpha** |
 | 5–7 | Advanced studio tools, local AI for photos, AI director |
 | 8 | Polish, signing, auto-update → **v1.0** |

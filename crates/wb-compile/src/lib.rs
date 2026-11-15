@@ -1,22 +1,26 @@
-//! "Biên dịch" dự án: đọc `project.json` → phân tích ảnh → lập kế hoạch nét → giải thời gian → [`Engine`].
+//! "Biên dịch" dự án: tài liệu [`Project`] → phân tích ảnh/chữ → lớp vẽ + DrawPlan → [`Bundle`] → [`Engine`].
 //!
-//! Đây là phần nối các crate lõi; CLI dùng nó, sau này app Tauri cũng sẽ dùng
-//! (khi đó tách thành crate riêng, kèm cache DrawPlan theo hash — kế hoạch File 05 §4).
+//! Dùng chung cho CLI (`wb`) và app Tauri. App giữ một [`AnalysisCache`] để khi chỉ kéo/đổi cỡ element
+//! thì không phải phân tích lại ảnh.
 
 pub mod analyze;
+pub mod cache;
 pub mod debug;
 pub mod text;
 pub mod vector;
 
 pub use analyze::{AnalyzedImage, ContentKind, ImageOptions, Layer, Placement, analyze_image, resolve_style};
+pub use cache::AnalysisCache;
+pub use wb_engine::Bundle;
 
 use anyhow::{Context, Result, bail};
 use image::RgbaImage;
 use serde::Deserialize;
-use std::path::Path;
-use wb_engine::{ElementAsset, Engine, HandSprite, Pixmap, Place, SceneAsset, pixmap_from_rgba};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use wb_engine::{BundleElement, BundleHand, BundleScene, Engine, HandSprite, Pixmap, RawImage, pixmap_from_rgba};
 use wb_model::{DrawStyle, ElementKind, HandMode, Project, REFERENCE_WIDTH, Timing, parse_hex_color};
-use wb_timing::{ElementInput, SceneInput, TimingParams};
+use wb_timing::Timeline;
 
 /// Báo cáo từng element sau khi biên dịch.
 pub struct ElementReport {
@@ -41,6 +45,76 @@ pub struct Compiled {
     pub report: Vec<ElementReport>,
 }
 
+/// Nơi tìm file của dự án.
+#[derive(Debug, Clone)]
+pub struct CompileContext {
+    /// Thư mục chứa file dự án — đường dẫn tương đối tính từ đây.
+    pub base_dir: PathBuf,
+    /// Thư mục `assets/` của app (tay, font có sẵn). `None` → tự dò ngược lên từ `base_dir` / thư mục hiện tại.
+    pub assets_dir: Option<PathBuf>,
+}
+
+/// Tiền tố đường dẫn tới tài nguyên có sẵn của app, vd. `"builtin:hands/pen-brown"`.
+pub const BUILTIN_PREFIX: &str = "builtin:";
+
+impl CompileContext {
+    pub fn new(base_dir: impl Into<PathBuf>) -> Self {
+        Self {
+            base_dir: base_dir.into(),
+            assets_dir: None,
+        }
+    }
+
+    /// Thư mục `assets/` của app.
+    pub fn assets(&self) -> Option<PathBuf> {
+        self.assets_dir.clone().or_else(|| {
+            [Some(self.base_dir.clone()), std::env::current_dir().ok()]
+                .into_iter()
+                .flatten()
+                .flat_map(|d| d.ancestors().map(|a| a.join("assets")).collect::<Vec<_>>())
+                .find(|a| a.join("hands").is_dir())
+        })
+    }
+
+    /// Đổi đường dẫn trong dự án thành đường dẫn thật: `builtin:…` → trong `assets/`, còn lại tính từ `base_dir`.
+    pub fn resolve(&self, rel: &str) -> Result<PathBuf> {
+        match rel.strip_prefix(BUILTIN_PREFIX) {
+            Some(r) => Ok(self.assets().context("không tìm thấy thư mục assets/ của app")?.join(r)),
+            None => Ok(self.base_dir.join(rel)),
+        }
+    }
+}
+
+/// Kết quả bước chuẩn bị: gói biên dịch + báo cáo.
+pub struct Prepared {
+    pub bundle: Bundle,
+    pub report: Vec<ElementReport>,
+    /// Với mỗi scene, chỉ số báo cáo của từng asset (một element nhiều lớp → nhiều asset).
+    pub owners: Vec<Vec<usize>>,
+}
+
+impl Prepared {
+    /// Dựng Engine và điền thời lượng vẽ thật vào báo cáo.
+    pub fn into_engine(self, out_width: Option<u32>) -> Result<(Engine, Vec<ElementReport>)> {
+        let Prepared {
+            bundle,
+            mut report,
+            owners,
+        } = self;
+        let engine = bundle.into_engine(out_width)?;
+        fill_draw_times(&mut report, &owners, engine.timeline());
+        Ok((engine, report))
+    }
+}
+
+fn fill_draw_times(report: &mut [ElementReport], owners: &[Vec<usize>], timeline: &Timeline) {
+    for (sc, owners) in timeline.scenes.iter().zip(owners) {
+        for (el, ri) in sc.elements.iter().zip(owners) {
+            report[*ri].draw_ms += el.draw_end_ms - el.draw_start_ms;
+        }
+    }
+}
+
 /// Chia thời gian của một element cho các lớp: lớp đầu nhận khoảng nghỉ, lớp cuối nhận pha hoàn thiện;
 /// giữa các lớp nghỉ ngắn. `duration_ms` (nếu ép) chia đều.
 fn layer_timing(t: Timing, i: usize, n: usize) -> Timing {
@@ -54,8 +128,19 @@ fn layer_timing(t: Timing, i: usize, n: usize) -> Timing {
     }
 }
 
-/// Phân tích một element (ảnh hoặc chữ). Đường dẫn tương đối so với `base_dir`.
-pub fn analyze_element(base_dir: &Path, el: &wb_model::Element) -> Result<AnalyzedImage> {
+/// Đường dẫn font cho element chữ: font khai báo, hoặc font mặc định trong `assets/`.
+pub fn font_path(ctx: &CompileContext, font: Option<&str>) -> Result<PathBuf> {
+    match font {
+        Some(f) => ctx.resolve(f),
+        None => match ctx.assets() {
+            Some(a) if a.join(text::DEFAULT_FONT_IN_ASSETS).is_file() => Ok(a.join(text::DEFAULT_FONT_IN_ASSETS)),
+            _ => text::resolve_font(&ctx.base_dir, None),
+        },
+    }
+}
+
+/// Phân tích một element (ảnh hoặc chữ).
+pub fn analyze_element(ctx: &CompileContext, el: &wb_model::Element) -> Result<AnalyzedImage> {
     match &el.kind {
         ElementKind::Image {
             src,
@@ -70,7 +155,7 @@ pub fn analyze_element(base_dir: &Path, el: &wb_model::Element) -> Result<Analyz
                 background: *background,
                 params: *params,
             };
-            analyze_file(&base_dir.join(src), &opt)
+            analyze_file(&ctx.resolve(src)?, &opt)
         }
         ElementKind::Text {
             text,
@@ -80,7 +165,7 @@ pub fn analyze_element(base_dir: &Path, el: &wb_model::Element) -> Result<Analyz
             align,
             line_height,
         } => {
-            let font_path = text::resolve_font(base_dir, font.as_deref())?;
+            let font_path = font_path(ctx, font.as_deref())?;
             let color = parse_hex_color(color).with_context(|| format!("màu chữ không hợp lệ: {color}"))?;
             text::analyze_text(
                 &font_path,
@@ -106,12 +191,17 @@ pub fn analyze_file(path: &Path, opt: &ImageOptions) -> Result<AnalyzedImage> {
     Ok(analyze_image(&load_image(path)?, opt))
 }
 
-/// Đọc và biên dịch dự án. `out_width`: ghi đè chiều rộng xuất (giữ tỉ lệ).
-pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> {
+/// Đọc file dự án JSON và kiểm tra phiên bản schema.
+pub fn read_project(project_path: &Path) -> Result<Project> {
     let text =
         std::fs::read_to_string(project_path).with_context(|| format!("không đọc được {}", project_path.display()))?;
     let project: Project =
         serde_json::from_str(&text).with_context(|| format!("file dự án không hợp lệ: {}", project_path.display()))?;
+    check_schema(&project)?;
+    Ok(project)
+}
+
+pub fn check_schema(project: &Project) -> Result<()> {
     if project.schema_version > wb_model::SCHEMA_VERSION {
         bail!(
             "dự án dùng schema v{} — app chỉ hỗ trợ tới v{}",
@@ -119,15 +209,25 @@ pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> 
             wb_model::SCHEMA_VERSION
         );
     }
-    let base_dir = project_path.parent().unwrap_or(Path::new(".")).to_path_buf();
+    Ok(())
+}
+
+/// Đọc và biên dịch file dự án. `out_width`: ghi đè chiều rộng xuất (giữ tỉ lệ).
+pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> {
+    let project = read_project(project_path)?;
+    let ctx = CompileContext::new(project_path.parent().unwrap_or(Path::new(".")));
+    let (engine, report) = prepare(&project, &ctx, None)?.into_engine(out_width)?;
+    Ok(Compiled {
+        engine,
+        project,
+        report,
+    })
+}
+
+/// Phân tích mọi element (song song, dùng `cache` nếu có) và đóng gói thành [`Bundle`].
+pub fn prepare(project: &Project, ctx: &CompileContext, cache: Option<&AnalysisCache>) -> Result<Prepared> {
+    check_schema(project)?;
     let set = &project.settings;
-    let (out_w, out_h) = match out_width {
-        Some(w) => (
-            w & !1,
-            ((w as f32 * set.height as f32 / set.width as f32).round() as u32) & !1,
-        ),
-        None => (set.width, set.height),
-    };
 
     // Phân tích song song mọi element (mỗi element một luồng)
     let jobs: Vec<(usize, usize, &wb_model::Element)> = project
@@ -136,13 +236,17 @@ pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> 
         .enumerate()
         .flat_map(|(si, sc)| sc.elements.iter().enumerate().map(move |(ei, el)| (si, ei, el)))
         .collect();
-    let analyzed: Vec<Result<(usize, usize, AnalyzedImage)>> = std::thread::scope(|scope| {
+    type Job = Result<(usize, usize, Arc<AnalyzedImage>)>;
+    let analyzed: Vec<Job> = std::thread::scope(|scope| {
         let handles: Vec<_> = jobs
             .iter()
             .map(|&(si, ei, el)| {
-                let base_dir = &base_dir;
-                scope.spawn(move || -> Result<(usize, usize, AnalyzedImage)> {
-                    Ok((si, ei, analyze_element(base_dir, el)?))
+                scope.spawn(move || -> Job {
+                    let a = match cache {
+                        Some(c) => c.get_or_analyze(ctx, el)?,
+                        None => Arc::new(analyze_element(ctx, el)?),
+                    };
+                    Ok((si, ei, a))
                 })
             })
             .collect();
@@ -151,7 +255,7 @@ pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> 
             .map(|h| h.join().expect("luồng phân tích panic"))
             .collect()
     });
-    let mut per_scene: Vec<Vec<Option<AnalyzedImage>>> = project
+    let mut per_scene: Vec<Vec<Option<Arc<AnalyzedImage>>>> = project
         .scenes
         .iter()
         .map(|s| s.elements.iter().map(|_| None).collect())
@@ -161,16 +265,15 @@ pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> 
         per_scene[si][ei] = Some(a);
     }
 
-    // Lắp ráp scene: mỗi lớp vẽ của một element thành một ElementAsset nối tiếp nhau
+    // Lắp ráp scene: mỗi lớp vẽ của một element thành một asset nối tiếp nhau
     let mut scenes = Vec::new();
     let mut report = Vec::new();
-    // (scene, element) của từng asset, và Timing của nó
-    let mut asset_owner: Vec<Vec<(usize, Timing)>> = Vec::new();
+    let mut owners = Vec::new();
     for (si, sc) in project.scenes.iter().enumerate() {
         let bg =
             parse_hex_color(sc.background.as_deref().unwrap_or(&set.background)).context("màu nền không hợp lệ")?;
         let mut elements = Vec::new();
-        let mut owners = Vec::new();
+        let mut scene_owners = Vec::new();
         for (ei, el) in sc.elements.iter().enumerate() {
             let a = per_scene[si][ei].take().unwrap();
             let (sw, sh) = a.source;
@@ -198,66 +301,45 @@ pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> 
                 draw_ms: 0.0,
             });
             let n = a.layers.len();
-            for (li, layer) in a.layers.into_iter().enumerate() {
+            for (li, layer) in a.layers.iter().enumerate() {
                 let (lw, lh) = layer.ink.dimensions();
                 let ink = pixmap_from_rgba(lw, lh, layer.ink.as_raw()).context("ảnh rỗng")?;
-                elements.push(ElementAsset {
-                    ink,
+                elements.push(BundleElement {
+                    ink: RawImage::from_pixmap(&ink),
                     // lớp có thể ở độ phân giải khác ảnh nguồn → co giãn cho cùng khung
-                    place: Place {
-                        scale: scale * sw as f32 / lw as f32,
-                        ox,
-                        oy,
-                    },
-                    plan: layer.plan,
+                    place: [scale * sw as f32 / lw as f32, ox, oy],
+                    plan: layer.plan.clone(),
+                    timing: layer_timing(el.timing, li, n),
                 });
-                owners.push((report.len() - 1, layer_timing(el.timing, li, n)));
+                scene_owners.push(report.len() - 1);
             }
         }
-        scenes.push(SceneAsset {
+        scenes.push(BundleScene {
             background: bg,
+            tail_ms: sc.tail_ms,
             elements,
         });
-        asset_owner.push(owners);
-    }
-    let params = TimingParams {
-        draw_speed: set.draw_speed,
-        ..TimingParams::default()
-    };
-    let inputs: Vec<SceneInput> = project
-        .scenes
-        .iter()
-        .zip(&scenes)
-        .zip(&asset_owner)
-        .map(|((sc, asset), owners)| SceneInput {
-            elements: asset
-                .elements
-                .iter()
-                .zip(owners)
-                .map(|(a, (_, timing))| ElementInput {
-                    plan: &a.plan,
-                    scale: a.place.scale,
-                    timing: *timing,
-                })
-                .collect(),
-            tail_ms: sc.tail_ms,
-        })
-        .collect();
-    let timeline = wb_timing::resolve(&inputs, &params);
-    for (sc, owners) in timeline.scenes.iter().zip(&asset_owner) {
-        for (el, (ri, _)) in sc.elements.iter().zip(owners) {
-            report[*ri].draw_ms += el.draw_end_ms - el.draw_start_ms;
-        }
+        owners.push(scene_owners);
     }
     let hand = match &set.hand {
-        Some(rel) => Some(load_hand(&base_dir.join(rel), set.hand_mode, set.hand_scale)?),
+        Some(rel) => Some(BundleHand::from_sprite(&load_hand(
+            &ctx.resolve(rel)?,
+            set.hand_mode,
+            set.hand_scale,
+        )?)),
         None => None,
     };
-    let engine = Engine::new(out_w, out_h, REFERENCE_WIDTH, scenes, timeline, hand);
-    Ok(Compiled {
-        engine,
-        project,
+    Ok(Prepared {
+        bundle: Bundle {
+            width: set.width,
+            height: set.height,
+            reference_width: REFERENCE_WIDTH,
+            draw_speed: set.draw_speed,
+            scenes,
+            hand,
+        },
         report,
+        owners,
     })
 }
 

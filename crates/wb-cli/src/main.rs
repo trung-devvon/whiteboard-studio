@@ -15,7 +15,7 @@ use clap::{Args, Parser, Subcommand};
 use serde::de::DeserializeOwned;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use wb_cli::{ImageOptions, compile, debug::render_debug, save_png};
+use wb_compile::{ImageOptions, compile, debug::render_debug, save_png};
 use wb_export::{Encoder, ExportOptions, export_mp4};
 use wb_model::VisionParams;
 
@@ -131,6 +131,15 @@ enum Cmd {
         #[arg(long)]
         width: Option<u32>,
     },
+    /// Ghi gói biên dịch (Bundle, postcard) — đúng dữ liệu app gửi sang Player WASM. Dùng để soi/gỡ lỗi Player.
+    Bundle {
+        project: PathBuf,
+        #[arg(short, long)]
+        out: PathBuf,
+        /// Gọn gói (ảnh tay, lớp mực) cho Player ở chiều rộng này
+        #[arg(long, default_value_t = 960)]
+        width: u32,
+    },
     /// Xoá nền đồng màu (nối liền mép ảnh) → PNG trong suốt, cắt gọn về vật thể.
     /// Dùng để chuẩn bị ảnh bàn tay / cây bút / sticker.
     RemoveBg {
@@ -211,6 +220,16 @@ fn main() -> Result<()> {
             println!("Đã ghi {}", out.display());
             Ok(())
         }
+        Cmd::Bundle { project, out, width } => {
+            let doc = wb_compile::read_project(&project)?;
+            let ctx = wb_compile::CompileContext::new(project.parent().unwrap_or(Path::new(".")));
+            let mut p = wb_compile::prepare(&doc, &ctx, None)?;
+            p.bundle.fit_for_preview(width);
+            let bytes = p.bundle.to_bytes();
+            std::fs::write(&out, &bytes).with_context(|| format!("không ghi được {}", out.display()))?;
+            println!("Đã ghi {} ({:.1} MB)", out.display(), bytes.len() as f64 / 1e6);
+            Ok(())
+        }
         Cmd::RemoveBg {
             image,
             out,
@@ -223,7 +242,7 @@ fn main() -> Result<()> {
             json,
             style,
         } => {
-            let a = wb_cli::analyze_file(&image, &style.options()?)?;
+            let a = wb_compile::analyze_file(&image, &style.options()?)?;
             println!(
                 "Ảnh {}×{} · loại {:?} · kiểu vẽ {:?}{} · làm việc ở {:.0}% · {} ms",
                 a.source.0,
@@ -314,7 +333,7 @@ fn render(project: &Path, out: &Path, encoder: &str, width: Option<u32>, range: 
     Ok(())
 }
 
-fn print_report(report: &[wb_cli::ElementReport]) {
+fn print_report(report: &[wb_compile::ElementReport]) {
     for r in report {
         println!(
             "  [{}/{}] {}×{} · {:?} → {:?}{} · lớp: {} · {} nét + {} chấm · phủ {:.2}% · phân tích {} ms · vẽ {:.1}s",

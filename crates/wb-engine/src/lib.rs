@@ -12,9 +12,11 @@
 //!
 //! Render tuần tự nhanh nhất (chỉ đóng dấu phần nét mới). Tua ngược → dựng lại scene từ đầu.
 
+mod bundle;
 mod hand;
 mod reveal;
 
+pub use bundle::{Bundle, BundleElement, BundleError, BundleHand, BundleScene, RawImage};
 pub use hand::HandSprite;
 pub use tiny_skia::Pixmap;
 

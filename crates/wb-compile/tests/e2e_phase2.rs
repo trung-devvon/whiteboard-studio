@@ -1,14 +1,14 @@
 //! Kiểm thử đầu-cuối Giai đoạn 2: chữ viết tay + SVG đi theo path + lớp tô màu bằng cọ.
 
 use std::path::Path;
-use wb_cli::ContentKind;
+use wb_compile::ContentKind;
 use wb_model::DrawStyle;
 use wb_vision::classify::ImageClass;
 
 #[test]
 fn demo_phase2_compiles_with_expected_layers_and_final_colors() {
     let project = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/projects/demo-phase2.json");
-    let mut c = wb_cli::compile(&project, Some(640)).unwrap();
+    let mut c = wb_compile::compile(&project, Some(640)).unwrap();
 
     let kinds: Vec<(ContentKind, Vec<&str>)> = c.report.iter().map(|r| (r.kind, r.layers.clone())).collect();
     assert_eq!(
@@ -60,8 +60,8 @@ fn bundled_hands_load_in_both_modes() {
     let hands = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/hands");
     for (name, has_wrist) in [("pen-brown", true), ("pencil-purple", true), ("pencil-green", false)] {
         let dir = hands.join(name);
-        let full = wb_cli::load_hand(&dir, HandMode::Full, 1.0).unwrap();
-        let wrist = wb_cli::load_hand(&dir, HandMode::Wrist, 1.0).unwrap();
+        let full = wb_compile::load_hand(&dir, HandMode::Full, 1.0).unwrap();
+        let wrist = wb_compile::load_hand(&dir, HandMode::Wrist, 1.0).unwrap();
         let area = |h: &wb_engine::HandSprite| h.pixmap.width() as u64 * h.pixmap.height() as u64;
         if has_wrist {
             assert!(area(&wrist) < area(&full), "{name}: kiểu wrist phải cắt bớt cẳng tay");
