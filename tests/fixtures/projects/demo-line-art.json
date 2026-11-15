@@ -7,7 +7,7 @@
     "seed": 1,
     "background": "#FFFFFF",
     "draw_speed": 1400,
-    "hand": "../../../assets/hands/placeholder-marker"
+    "hand": "../../../assets/hands/pen-brown"
   },
   "scenes": [
     {

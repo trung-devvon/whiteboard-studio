@@ -3,70 +3,31 @@
 //! Đây là phần nối các crate lõi; CLI dùng nó, sau này app Tauri cũng sẽ dùng
 //! (khi đó tách thành crate riêng, kèm cache DrawPlan theo hash — kế hoạch File 05 §4).
 
+pub mod analyze;
 pub mod debug;
+pub mod text;
+pub mod vector;
+
+pub use analyze::{AnalyzedImage, ContentKind, ImageOptions, Layer, Placement, analyze_image, resolve_style};
 
 use anyhow::{Context, Result, bail};
 use image::RgbaImage;
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::path::Path;
 use wb_engine::{ElementAsset, Engine, HandSprite, Pixmap, Place, SceneAsset, pixmap_from_rgba};
-use wb_model::{DrawPlan, ElementKind, PointW, Project, REFERENCE_WIDTH, StrokeKind, VisionParams, parse_hex_color};
-use wb_planner::PlannerParams;
+use wb_model::{DrawStyle, ElementKind, HandMode, Project, REFERENCE_WIDTH, Timing, parse_hex_color};
 use wb_timing::{ElementInput, SceneInput, TimingParams};
-use wb_vision::binary::Binary;
-
-/// Kết quả phân tích + lập kế hoạch cho một ảnh.
-pub struct AnalyzedImage {
-    pub ink: RgbaImage,
-    pub plan: DrawPlan,
-    /// Độ phủ của kế hoạch nét trên mặt nạ mực (0..1) — trước pha hoàn thiện.
-    pub coverage: f32,
-    pub work_scale: f32,
-    pub ink_mask: Binary,
-    pub millis: u128,
-}
-
-/// Phân tích một ảnh line-art và lập kế hoạch nét.
-pub fn analyze_image(img: &RgbaImage, params: &VisionParams) -> AnalyzedImage {
-    let t0 = Instant::now();
-    let r = wb_vision::analyze_line_art(img, params);
-    let pp = PlannerParams::for_scale(1.0 / r.work_scale, params.min_stroke_length);
-    let plan = wb_planner::plan(r.strokes, img.width(), img.height(), StrokeKind::Outline, &pp);
-    // độ phủ: quy nét về lưới làm việc rồi đo trên mặt nạ mực
-    let s = r.work_scale;
-    let work: Vec<Vec<PointW>> = plan
-        .strokes
-        .iter()
-        .flat_map(|st| {
-            let main: Vec<PointW> = st
-                .points
-                .iter()
-                .map(|p| PointW::new(p.x * s, p.y * s, p.w * s))
-                .collect();
-            std::iter::once(main).chain(
-                st.dots
-                    .iter()
-                    .map(move |d| vec![PointW::new(d.point.x * s, d.point.y * s, d.point.w * s)]),
-            )
-        })
-        .collect();
-    let coverage = wb_vision::coverage::coverage(&r.ink_mask, &work);
-    AnalyzedImage {
-        ink: r.ink,
-        plan,
-        coverage,
-        work_scale: s,
-        ink_mask: r.ink_mask,
-        millis: t0.elapsed().as_millis(),
-    }
-}
 
 /// Báo cáo từng element sau khi biên dịch.
 pub struct ElementReport {
     pub scene: String,
     pub id: String,
     pub source: (u32, u32),
+    pub kind: ContentKind,
+    pub style: DrawStyle,
+    pub background_removed: bool,
+    /// Tên các lớp vẽ, theo thứ tự.
+    pub layers: Vec<&'static str>,
     pub strokes: u32,
     pub dots: u32,
     pub coverage: f32,
@@ -78,6 +39,71 @@ pub struct Compiled {
     pub engine: Engine,
     pub project: Project,
     pub report: Vec<ElementReport>,
+}
+
+/// Chia thời gian của một element cho các lớp: lớp đầu nhận khoảng nghỉ, lớp cuối nhận pha hoàn thiện;
+/// giữa các lớp nghỉ ngắn. `duration_ms` (nếu ép) chia đều.
+fn layer_timing(t: Timing, i: usize, n: usize) -> Timing {
+    if n <= 1 {
+        return t;
+    }
+    Timing {
+        gap_before_ms: if i == 0 { t.gap_before_ms } else { 150 },
+        duration_ms: t.duration_ms.map(|d| d / n as u32),
+        settle_ms: if i + 1 == n { t.settle_ms } else { 150 },
+    }
+}
+
+/// Phân tích một element (ảnh hoặc chữ). Đường dẫn tương đối so với `base_dir`.
+pub fn analyze_element(base_dir: &Path, el: &wb_model::Element) -> Result<AnalyzedImage> {
+    match &el.kind {
+        ElementKind::Image {
+            src,
+            pipeline,
+            style,
+            background,
+            params,
+        } => {
+            let opt = ImageOptions {
+                pipeline: *pipeline,
+                style: *style,
+                background: *background,
+                params: *params,
+            };
+            analyze_file(&base_dir.join(src), &opt)
+        }
+        ElementKind::Text {
+            text,
+            font,
+            size,
+            color,
+            align,
+            line_height,
+        } => {
+            let font_path = text::resolve_font(base_dir, font.as_deref())?;
+            let color = parse_hex_color(color).with_context(|| format!("màu chữ không hợp lệ: {color}"))?;
+            text::analyze_text(
+                &font_path,
+                &text::TextOptions {
+                    text,
+                    size: *size,
+                    color,
+                    align: *align,
+                    line_height: *line_height,
+                    max_width: (el.transform.w > 0.0).then_some(el.transform.w),
+                },
+            )
+        }
+    }
+}
+
+/// Phân tích một file ảnh: SVG → nhóm E (đi theo path), còn lại → [`analyze_image`].
+pub fn analyze_file(path: &Path, opt: &ImageOptions) -> Result<AnalyzedImage> {
+    if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("svg")) {
+        let data = std::fs::read(path).with_context(|| format!("không đọc được {}", path.display()))?;
+        return vector::analyze_svg(&data, opt);
+    }
+    Ok(analyze_image(&load_image(path)?, opt))
 }
 
 /// Đọc và biên dịch dự án. `out_width`: ghi đè chiều rộng xuất (giữ tỉ lệ).
@@ -103,26 +129,20 @@ pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> 
         None => (set.width, set.height),
     };
 
-    // Phân tích song song mọi ảnh (mỗi ảnh một luồng)
-    let jobs: Vec<(usize, usize, PathBuf, VisionParams)> = project
+    // Phân tích song song mọi element (mỗi element một luồng)
+    let jobs: Vec<(usize, usize, &wb_model::Element)> = project
         .scenes
         .iter()
         .enumerate()
-        .flat_map(|(si, sc)| {
-            sc.elements.iter().enumerate().map(move |(ei, el)| {
-                let ElementKind::Image { src, params, .. } = &el.kind;
-                (si, ei, PathBuf::from(src), *params)
-            })
-        })
+        .flat_map(|(si, sc)| sc.elements.iter().enumerate().map(move |(ei, el)| (si, ei, el)))
         .collect();
     let analyzed: Vec<Result<(usize, usize, AnalyzedImage)>> = std::thread::scope(|scope| {
         let handles: Vec<_> = jobs
             .iter()
-            .map(|(si, ei, src, params)| {
-                let path = base_dir.join(src);
+            .map(|&(si, ei, el)| {
+                let base_dir = &base_dir;
                 scope.spawn(move || -> Result<(usize, usize, AnalyzedImage)> {
-                    let img = load_image(&path)?;
-                    Ok((*si, *ei, analyze_image(&img, params)))
+                    Ok((si, ei, analyze_element(base_dir, el)?))
                 })
             })
             .collect();
@@ -141,38 +161,64 @@ pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> 
         per_scene[si][ei] = Some(a);
     }
 
-    // Lắp ráp scene + giải thời gian
+    // Lắp ráp scene: mỗi lớp vẽ của một element thành một ElementAsset nối tiếp nhau
     let mut scenes = Vec::new();
     let mut report = Vec::new();
+    // (scene, element) của từng asset, và Timing của nó
+    let mut asset_owner: Vec<Vec<(usize, Timing)>> = Vec::new();
     for (si, sc) in project.scenes.iter().enumerate() {
         let bg =
             parse_hex_color(sc.background.as_deref().unwrap_or(&set.background)).context("màu nền không hợp lệ")?;
         let mut elements = Vec::new();
+        let mut owners = Vec::new();
         for (ei, el) in sc.elements.iter().enumerate() {
             let a = per_scene[si][ei].take().unwrap();
-            let (sw, sh) = a.ink.dimensions();
-            let (scale, ox, oy) = el.transform.fit(sw, sh);
+            let (sw, sh) = a.source;
+            // (px lớp đầu → px tham chiếu, góc trên-trái)
+            let (scale, ox, oy) = match a.placement {
+                Placement::Fit => el.transform.fit(sw, sh),
+                Placement::Absolute { raster_scale, margin } => (
+                    1.0 / raster_scale,
+                    el.transform.x - margin / raster_scale,
+                    el.transform.y - margin / raster_scale,
+                ),
+            };
             report.push(ElementReport {
                 scene: sc.id.clone(),
                 id: el.id.clone(),
-                source: (sw, sh),
-                strokes: a.plan.stats.stroke_count,
-                dots: a.plan.stats.dot_count,
-                coverage: a.coverage,
+                source: a.source,
+                kind: a.kind,
+                style: a.style,
+                background_removed: a.background_removed,
+                layers: a.layers.iter().map(|l| l.name).collect(),
+                strokes: a.stroke_count(),
+                dots: a.dot_count(),
+                coverage: a.coverage(),
                 analyze_ms: a.millis,
                 draw_ms: 0.0,
             });
-            let ink = pixmap_from_rgba(sw, sh, a.ink.as_raw()).context("ảnh rỗng")?;
-            elements.push(ElementAsset {
-                ink,
-                place: Place { scale, ox, oy },
-                plan: a.plan,
-            });
+            let n = a.layers.len();
+            for (li, layer) in a.layers.into_iter().enumerate() {
+                let (lw, lh) = layer.ink.dimensions();
+                let ink = pixmap_from_rgba(lw, lh, layer.ink.as_raw()).context("ảnh rỗng")?;
+                elements.push(ElementAsset {
+                    ink,
+                    // lớp có thể ở độ phân giải khác ảnh nguồn → co giãn cho cùng khung
+                    place: Place {
+                        scale: scale * sw as f32 / lw as f32,
+                        ox,
+                        oy,
+                    },
+                    plan: layer.plan,
+                });
+                owners.push((report.len() - 1, layer_timing(el.timing, li, n)));
+            }
         }
         scenes.push(SceneAsset {
             background: bg,
             elements,
         });
+        asset_owner.push(owners);
     }
     let params = TimingParams {
         draw_speed: set.draw_speed,
@@ -182,30 +228,29 @@ pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> 
         .scenes
         .iter()
         .zip(&scenes)
-        .map(|(sc, asset)| SceneInput {
-            elements: sc
+        .zip(&asset_owner)
+        .map(|((sc, asset), owners)| SceneInput {
+            elements: asset
                 .elements
                 .iter()
-                .zip(&asset.elements)
-                .map(|(el, a)| ElementInput {
+                .zip(owners)
+                .map(|(a, (_, timing))| ElementInput {
                     plan: &a.plan,
                     scale: a.place.scale,
-                    timing: el.timing,
+                    timing: *timing,
                 })
                 .collect(),
             tail_ms: sc.tail_ms,
         })
         .collect();
     let timeline = wb_timing::resolve(&inputs, &params);
-    let mut k = 0;
-    for sc in &timeline.scenes {
-        for el in &sc.elements {
-            report[k].draw_ms = el.draw_end_ms - el.draw_start_ms;
-            k += 1;
+    for (sc, owners) in timeline.scenes.iter().zip(&asset_owner) {
+        for (el, (ri, _)) in sc.elements.iter().zip(owners) {
+            report[*ri].draw_ms += el.draw_end_ms - el.draw_start_ms;
         }
     }
     let hand = match &set.hand {
-        Some(rel) => Some(load_hand(&base_dir.join(rel))?),
+        Some(rel) => Some(load_hand(&base_dir.join(rel), set.hand_mode, set.hand_scale)?),
         None => None,
     };
     let engine = Engine::new(out_w, out_h, REFERENCE_WIDTH, scenes, timeline, hand);
@@ -221,10 +266,19 @@ struct HandMeta {
     file: String,
     anchor: [f32; 2],
     display_height: f32,
+    /// Hệ số phóng khi dùng kiểu "cả cánh tay" (mặc định 1,4).
+    #[serde(default)]
+    full_scale: Option<f32>,
+    /// Đường cổ tay `[điểm mép trên, điểm mép dưới]` (px ảnh) — cho kiểu "tới cổ tay".
+    #[serde(default)]
+    wrist: Option<[[f32; 2]; 2]>,
 }
 
-/// Nạp bàn tay từ thư mục chứa `hand.json` (ảnh PNG hoặc SVG).
-pub fn load_hand(dir: &Path) -> Result<HandSprite> {
+/// Hệ số phóng mặc định của kiểu "cả cánh tay".
+pub const DEFAULT_FULL_SCALE: f32 = 1.4;
+
+/// Nạp bàn tay từ thư mục chứa `hand.json` (ảnh PNG hoặc SVG) theo kiểu hiển thị và hệ số cỡ.
+pub fn load_hand(dir: &Path, mode: HandMode, scale: f32) -> Result<HandSprite> {
     let meta_path = dir.join("hand.json");
     let meta: HandMeta = serde_json::from_str(
         &std::fs::read_to_string(&meta_path).with_context(|| format!("không đọc được {}", meta_path.display()))?,
@@ -254,11 +308,27 @@ pub fn load_hand(dir: &Path) -> Result<HandSprite> {
             .to_rgba8();
         (pixmap_from_rgba(img.width(), img.height(), img.as_raw()).unwrap(), 1.0)
     };
-    Ok(HandSprite {
-        pixmap,
+    let scale = scale.clamp(0.2, 5.0);
+    let hand = HandSprite {
         anchor_x: meta.anchor[0] * unit,
         anchor_y: meta.anchor[1] * unit,
-        display_height: meta.display_height,
+        display_height: meta.display_height * scale,
+        pixmap,
+    };
+    Ok(match mode {
+        HandMode::Full => HandSprite {
+            display_height: hand.display_height * meta.full_scale.unwrap_or(DEFAULT_FULL_SCALE),
+            ..hand
+        },
+        HandMode::Wrist => match meta.wrist {
+            Some([a, b]) => {
+                // mép cắt mờ dần trong ~3% chiều cao ảnh tay
+                let feather = hand.pixmap.height() as f32 * 0.03;
+                hand.crop_at_wrist([[a[0] * unit, a[1] * unit], [b[0] * unit, b[1] * unit]], feather)
+            }
+            // không có cổ tay (vd. chỉ cây bút) → dùng nguyên ảnh
+            None => hand,
+        },
     })
 }
 

@@ -83,10 +83,13 @@ impl Engine {
         hand: Option<HandSprite>,
     ) -> Self {
         assert_eq!(scenes.len(), timeline.scenes.len(), "số scene không khớp Timeline");
+        let k = out_w as f32 / reference_width;
+        // chuẩn bị tay một lần: thu nhỏ đúng cỡ đầu ra
+        let hand = hand.map(|h| h.prepared(k));
         Self {
             out_w,
             out_h,
-            k: out_w as f32 / reference_width,
+            k,
             scenes,
             timeline,
             hand,

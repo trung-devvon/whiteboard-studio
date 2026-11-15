@@ -17,17 +17,26 @@ Chỉ chấp nhận giấy phép dùng thương mại được (chính sách "Gi
 | Mali | github.com/google/fonts — ofl/mali | SIL OFL 1.1 (`OFL-Mali.txt`) | ✅ (kiểm chứng S4) |
 | Itim | github.com/google/fonts — ofl/itim | SIL OFL 1.1 (`OFL-Itim.txt`) | ✅ (kiểm chứng S4) |
 
+## Font đóng gói (`assets/fonts/`)
+
+| Font | Nguồn | Giấy phép | Ghi chú |
+|---|---|---|---|
+| Patrick Hand | github.com/google/fonts — ofl/patrickhand | SIL OFL 1.1 (`OFL-PatrickHand.txt`) | Font mặc định cho element chữ |
+
 ## Bàn tay
 
 | Tên | Nguồn | Giấy phép | Ghi chú |
 |---|---|---|---|
-| `hands/placeholder-marker` (SVG) | Tự vẽ cho dự án | self-made | Tay TẠM — sẽ thay bằng ảnh tay chụp thật |
+| `hands/pen-brown` (PNG, **mặc định**) | Tác giả dự án tự tạo (ảnh AI) | Dùng tự do trong dự án | Tay minh hoạ cầm bút nâu, 3500×3000 |
+| `hands/pencil-purple` (PNG) | Tác giả dự án tự tạo (ảnh AI) | Dùng tự do trong dự án | Bút chì tím, 578×432 (hơi mờ ở 1080p). `hand-outline.svg` chỉ có viền, ruột trong suốt — không dùng |
+| `hands/pencil-green` (PNG) | Tác giả dự án tự tạo (ảnh AI; ảnh gốc giữ ở `not_push_git/hands-goc/`) | Dùng tự do trong dự án | Chỉ cây bút chì, không có tay. Nền đã xoá bằng `wb remove-bg`, 1619×1619 |
 
 ## Ảnh test
 
 | Tên | Nguồn | Giấy phép |
 |---|---|---|
-| `tests/fixtures/images/A/a01…a10.svg` | Tự vẽ (code SVG) cho dự án | self-made |
+| `tests/fixtures/images/A/a01…a10.svg`, `E/e01-ngoi-nha-mau.svg` | Tự vẽ (code SVG) cho dự án | self-made |
+| `A/art-chitiet-nhieumausac.png`, `C/anhchup.png`, `C/motso-dovat-anh2d.png` | Tác giả dự án tự tạo (ảnh AI) | Dùng tự do trong dự án (ảnh test) |
 
 ## Tiếng bút, icon, nền
 

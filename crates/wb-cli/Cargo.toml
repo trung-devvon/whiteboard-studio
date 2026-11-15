@@ -17,6 +17,7 @@ path = "src/main.rs"
 [dependencies]
 wb-model.workspace = true
 wb-vision.workspace = true
+wb-text.workspace = true
 wb-planner.workspace = true
 wb-timing.workspace = true
 wb-engine.workspace = true

@@ -26,5 +26,6 @@ Mẫu: [`0000-mau.md`](0000-mau.md).
 | 0018 | AI: key người dùng + OpenAI-compatible cho AI local | ✅ Chấp nhận |
 | 0019 | Bàn tay: 1 ảnh chụp + 1 SVG + Trình chỉnh bàn tay | ✅ Chấp nhận |
 | 0020 | Rút xương bằng **Guo–Hall** thay Zhang–Suen (giữ nét chéo 45°) | ✅ Chấp nhận — [0020](0020-guo-hall-thinning.md) |
+| 0021 | Element **nhiều lớp vẽ** + "tô nét" bằng cọ cho ảnh màu / ảnh chụp | ✅ Chấp nhận — [0021](0021-lop-ve-va-to-net.md) |
 
 Chi tiết các ADR "Đề xuất" hiện nằm trong kế hoạch (`not_push_git/07-rui-ro-giay-phep-va-quyet-dinh.md`) và sẽ được tách thành file khi chốt.

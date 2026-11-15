@@ -1,0 +1,13 @@
+{
+  "id": "pencil-purple",
+  "name": "Bút chì tím – tay phải (minh hoạ, độ phân giải thấp)",
+  "file": "hand.png",
+  "kind": "pencil",
+  "handedness": "right",
+  "anchor": [75, 64],
+  "display_height": 700,
+  "full_scale": 1.4,
+  "wrist": [[383, 256], [267, 314]],
+  "license": "Tác giả dự án tự tạo (ảnh AI) — dùng tự do trong dự án",
+  "author": "tác giả dự án"
+}

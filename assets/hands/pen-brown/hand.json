@@ -1,0 +1,13 @@
+{
+  "id": "pen-brown",
+  "name": "Bút nâu – tay phải (minh hoạ)",
+  "file": "hand.png",
+  "kind": "pen",
+  "handedness": "right",
+  "anchor": [239, 1056],
+  "display_height": 900,
+  "full_scale": 1.4,
+  "wrist": [[2279, 1611], [1681, 2209]],
+  "license": "Tác giả dự án tự tạo (ảnh AI) — dùng tự do trong dự án",
+  "author": "tác giả dự án"
+}

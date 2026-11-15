@@ -6,8 +6,10 @@
 
 use std::path::{Path, PathBuf};
 use tiny_skia::{Color, FilterQuality, Pixmap, PixmapPaint, Transform};
+use wb_cli::analyze::ContentKind;
 use wb_engine::pixmap_from_rgba;
-use wb_model::{ElementKind, VisionParams};
+use wb_model::ElementKind;
+use wb_vision::classify::ImageClass;
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -46,14 +48,16 @@ fn every_fixture_is_covered_by_its_strokes() {
     assert_eq!(files.len(), 10, "kỳ vọng 10 ảnh mẫu line-art");
     for f in files {
         let img = wb_cli::load_image(&f).unwrap();
-        let a = wb_cli::analyze_image(&img, &VisionParams::default());
+        let a = wb_cli::analyze_image(&img, &wb_cli::ImageOptions::default());
         let name = f.file_name().unwrap().to_string_lossy();
-        assert!(a.coverage >= 0.97, "{name}: độ phủ {:.2}%", a.coverage * 100.0);
-        assert!(
-            a.plan.stats.stroke_count <= 40,
-            "{name}: quá nhiều nét ({})",
-            a.plan.stats.stroke_count
+        assert_eq!(
+            a.kind,
+            ContentKind::Image(ImageClass::LineArt),
+            "{name}: bộ phân loại phải nhận ra line-art"
         );
+        assert_eq!(a.layers.len(), 1);
+        assert!(a.coverage() >= 0.97, "{name}: độ phủ {:.2}%", a.coverage() * 100.0);
+        assert!(a.stroke_count() <= 40, "{name}: quá nhiều nét ({})", a.stroke_count());
     }
 }
 
@@ -67,7 +71,9 @@ fn final_frame_of_each_scene_matches_source_image() {
         let got = c.engine.render(t).clone();
         // kỳ vọng: bảng trắng + ảnh gốc (nền giấy trắng) đặt đúng chỗ
         let el = &c.project.scenes[si].elements[0];
-        let ElementKind::Image { src, .. } = &el.kind;
+        let ElementKind::Image { src, .. } = &el.kind else {
+            panic!("demo chỉ có ảnh")
+        };
         let img = wb_cli::load_image(&project.parent().unwrap().join(src)).unwrap();
         let src_pm = pixmap_from_rgba(img.width(), img.height(), img.as_raw()).unwrap();
         let (s, ox, oy) = el.transform.fit(img.width(), img.height());

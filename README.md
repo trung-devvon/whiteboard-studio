@@ -4,13 +4,13 @@
 
 Built with Rust, Tauri v2 and React. Offline-first: image analysis, stroke planning, rendering and encoding all run locally.
 
-> **Status: early development — Phase 1 (core engine + CLI) complete.** The command-line renderer turns line-art images into hand-drawn MP4 videos; the desktop editor is not built yet. Reports: [Phase 0](docs/giai-doan-0/ket-qua-spike.md) · [Phase 1](docs/giai-doan-1/README.md).
+> **Status: early development — Phase 2 (handwriting, color images, SVG) complete.** The command-line renderer turns line art, color illustrations, photos, SVG icons and Vietnamese handwritten text into hand-drawn MP4 videos; the desktop editor is not built yet. Reports: [Phase 0](docs/giai-doan-0/ket-qua-spike.md) · [Phase 1](docs/giai-doan-1/README.md) · [Phase 2](docs/giai-doan-2/README.md).
 
 ---
 
 ## Highlights (planned)
 
-- **Draws anything** — line art, flat illustrations, logos, SVG icons and (later) photos, through dedicated image pipelines.
+- **Draws anything** — line art, color illustrations, photos, SVG icons and handwritten text. Images are classified automatically and drawn in layers: a pencil sketch first, then a brush sweeps back and forth to reveal the colors.
 - **Pixel-perfect results** — a *reveal* renderer: the hand's path uncovers the original image, so the finished frame always matches the source.
 - **Natural handwriting** — glyph skeletonization with proper Vietnamese diacritic ordering (letters first, tone marks after).
 - **Narration-driven timing** — drawing speed adapts so each element finishes exactly when the voice-over says it.
@@ -27,6 +27,8 @@ Built with Rust, Tauri v2 and React. Offline-first: image analysis, stroke plann
 | Vietnamese handwriting | 9/9 test lines pass on three OFL fonts, ≥ 99.5% reveal coverage |
 | Binary IPC (Rust → UI) | 5 MB draw plan transferred in ~27 ms (4.7× faster than JSON) |
 | End-to-end render (Phase 1) | 10-scene line-art demo, 51 s of 1080p30 video exported in ~17 s; final frames match the source images |
+| Handwriting (Phase 2) | "Chào mừng các bạn đến với bài học hôm nay" on 3 OFL fonts: every tone mark detected and written after its word, ≥ 99% coverage |
+| SVG icons (Phase 2) | Stroked paths are followed directly — 100% coverage on all samples, ~15 ms analysis |
 
 Details and methodology: [`docs/giai-doan-0/ket-qua-spike.md`](docs/giai-doan-0/ket-qua-spike.md).
 
@@ -43,9 +45,9 @@ React + TypeScript UI ──(Tauri IPC: JSON · binary · channels)──► thi
 | Crate | Responsibility |
 |---|---|
 | `wb-model` | Shared data types; source of the generated TypeScript bindings |
-| `wb-vision` | Image pipelines: classification, skeletonization, vectorization |
-| `wb-text` | Font loading, shaping, glyph → strokes, diacritic handling |
-| `wb-planner` | Stroke ordering, smoothing, fill hatching, user-defined draw regions |
+| `wb-vision` | Image pipelines: classification, background removal, skeletonization, DoG sketch lines |
+| `wb-text` | Shaping (harfrust), glyph outlines (skrifa) → strokes, Vietnamese diacritic ordering, line wrapping |
+| `wb-planner` | Stroke ordering, smoothing, zig-zag brush hatching, user-defined draw regions |
 | `wb-timing` | Narration-aware timeline solver and speed control |
 | `wb-engine` | Deterministic renderer (no I/O, WASM-compatible) |
 | `wb-audio` | TTS providers, alignment, sound effects, mixing |
@@ -86,9 +88,10 @@ FFmpeg is not committed. Download a **win64 LGPL** build from [BtbN/FFmpeg-Build
 
 ```bash
 cargo build -p wb-cli --profile bench-fast
-target/bench-fast/wb quick path/to/drawing.png -o video.mp4        # one image → video
-target/bench-fast/wb render tests/fixtures/projects/demo-line-art.json -o demo.mp4
-target/bench-fast/wb analyze path/to/drawing.png -o debug.png      # inspect stroke order
+target/bench-fast/wb quick path/to/image.png -o video.mp4          # one image → video (type detected automatically)
+target/bench-fast/wb quick photo.jpg -o v.mp4 --style sketch_then_color   # or: sketch | color_brush
+target/bench-fast/wb render tests/fixtures/projects/demo-phase2.json -o demo.mp4   # text + SVG + color fill
+target/bench-fast/wb analyze path/to/image.png -o debug.png        # image type, layers, stroke order
 ```
 
 ### Common commands
@@ -108,7 +111,7 @@ target/bench-fast/wb analyze path/to/drawing.png -o debug.png      # inspect str
 |---|---|
 | 0 | Foundations & technical spikes ✅ |
 | 1 | Core engine + CLI: line art → MP4 ✅ |
-| 2 | Handwritten text, flat-color images, SVG icons |
+| 2 | Handwritten text, color images & photos (brush reveal), SVG icons ✅ |
 | 3 | Desktop editor |
 | 4 | Narration & sync → **MVP / alpha** |
 | 5–7 | Advanced studio tools, local AI for photos, AI director |
@@ -116,4 +119,4 @@ target/bench-fast/wb analyze path/to/drawing.png -o debug.png      # inspect str
 
 ## Licensing
 
-The project license has not been chosen yet. Dependencies are restricted to permissive licenses (enforced by `cargo deny`), and FFmpeg is used only as a separate LGPL process. Third-party assets are listed in [`assets/CREDITS.md`](assets/CREDITS.md).
+The project license has not been chosen yet. Dependencies are restricted to permissive licenses (enforced by `cargo deny`), and FFmpeg is used only as a separate LGPL process. Third-party assets are listed in [`assets/CREDITS.md`](assets/CREDITS.md); the bundled default font is Patrick Hand (SIL OFL 1.1).

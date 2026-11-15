@@ -6,8 +6,8 @@
 use specta::Types;
 use specta_typescript::Typescript;
 use wb_model::{
-    DrawPlan, Element, ElementKind, PipelineChoice, PlanStats, PlannedStroke, PointW, Project, ProjectSettings, Scene,
-    StrokeDot, StrokeKind, Timing, Transform, VisionParams,
+    BackgroundMode, DrawPlan, DrawStyle, Element, ElementKind, HandMode, PipelineChoice, PlanStats, PlannedStroke,
+    PointW, Project, ProjectSettings, Scene, StrokeDot, StrokeKind, TextAlign, Timing, Transform, VisionParams,
 };
 
 fn main() {
@@ -24,6 +24,10 @@ fn main() {
         .register::<Element>()
         .register::<ElementKind>()
         .register::<PipelineChoice>()
+        .register::<DrawStyle>()
+        .register::<BackgroundMode>()
+        .register::<TextAlign>()
+        .register::<HandMode>()
         .register::<VisionParams>()
         .register::<Transform>()
         .register::<Timing>();

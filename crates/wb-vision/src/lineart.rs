@@ -26,6 +26,19 @@ pub struct LineArtResult {
     pub raw_coverage: f32,
 }
 
+/// Mặt nạ nét → đường tâm nét (px của mặt nạ) + độ phủ thô. Dùng chung cho line-art và nét phác thảo.
+pub fn strokes_from_mask(mask: &Binary) -> (Vec<Vec<PointW>>, f32) {
+    let dist = distance_transform(mask);
+    let skel = guo_hall(mask);
+    let raw = trace_strokes(&skel, &dist, 1.5, 60.0);
+    let strokes: Vec<Vec<PointW>> = raw
+        .iter()
+        .map(|s| s.iter().map(|p| PointW::new(p[0], p[1], p[2])).collect())
+        .collect();
+    let cov = coverage(mask, &strokes);
+    (strokes, cov)
+}
+
 /// Phân tích ảnh line-art.
 pub fn analyze_line_art(img: &RgbaImage, params: &VisionParams) -> LineArtResult {
     let (sw, sh) = img.dimensions();
@@ -54,15 +67,7 @@ pub fn analyze_line_art(img: &RgbaImage, params: &VisionParams) -> LineArtResult
     });
     mask.remove_small_components(3);
 
-    let dist = distance_transform(&mask);
-    let skel = guo_hall(&mask);
-    let raw = trace_strokes(&skel, &dist, 1.5, 60.0);
-
-    let work_strokes: Vec<Vec<PointW>> = raw
-        .iter()
-        .map(|s| s.iter().map(|p| PointW::new(p[0], p[1], p[2])).collect())
-        .collect();
-    let raw_coverage = coverage(&mask, &work_strokes);
+    let (work_strokes, raw_coverage) = strokes_from_mask(&mask);
 
     let inv = 1.0 / scale;
     let strokes = work_strokes

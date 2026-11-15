@@ -31,6 +31,24 @@ pub struct ProjectSettings {
     pub draw_speed: f32,
     /// Bàn tay: đường dẫn tới thư mục chứa `hand.json` (tương đối so với file dự án). `None` = không vẽ tay.
     pub hand: Option<String>,
+    /// Kiểu hiển thị bàn tay: cả cánh tay (to) hay chỉ tới cổ tay.
+    pub hand_mode: HandMode,
+    /// Hệ số cỡ tay người dùng chỉnh thêm (1 = cỡ mặc định của bộ tay).
+    pub hand_scale: f32,
+}
+
+/// Kiểu hiển thị bàn tay.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(rename_all = "snake_case")]
+pub enum HandMode {
+    /// Nguyên ảnh tay + cẳng tay, hiển thị to (hệ số `full_scale` trong `hand.json`)
+    /// để chỗ ảnh bị cắt ở cẳng tay thường nằm ngoài khung.
+    Full,
+    /// Chỉ bàn tay tới cổ tay (đường `wrist` trong `hand.json`), mép cắt mờ dần — **mặc định**.
+    /// Bộ tay không khai báo `wrist` (vd. chỉ có cây bút) thì dùng nguyên ảnh.
+    #[default]
+    Wrist,
 }
 
 impl Default for ProjectSettings {
@@ -43,6 +61,8 @@ impl Default for ProjectSettings {
             background: "#FFFFFF".into(),
             draw_speed: 1400.0,
             hand: None,
+            hand_mode: HandMode::Wrist,
+            hand_scale: 1.0,
         }
     }
 }
@@ -78,7 +98,7 @@ pub struct Element {
     pub timing: Timing,
 }
 
-/// Loại element. Giai đoạn 1 chỉ có ảnh.
+/// Loại element: ảnh hoặc chữ viết tay.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -88,9 +108,55 @@ pub enum ElementKind {
         src: String,
         #[serde(default)]
         pipeline: PipelineChoice,
+        /// Cách bàn tay làm ảnh hiện ra (phác thảo / tô màu bằng cọ…).
+        #[serde(default)]
+        style: DrawStyle,
+        /// Nền đồng màu quanh vật thể: giữ hay xoá (ảnh màu / ảnh chụp).
+        #[serde(default)]
+        background: BackgroundMode,
         #[serde(default)]
         params: VisionParams,
     },
+    /// Chữ viết tay. Khung `transform`: (x, y) = góc trên-trái dòng đầu, `w` = bề rộng tối đa (xuống dòng).
+    Text {
+        /// Nội dung (ký tự xuống dòng = xuống dòng).
+        text: String,
+        /// File font (.ttf/.otf, tương đối so với file dự án). `None` = font mặc định của app.
+        #[serde(default)]
+        font: Option<String>,
+        /// Cỡ chữ (px khung tham chiếu).
+        #[serde(default = "default_text_size")]
+        size: f32,
+        /// Màu chữ `#RRGGBB`.
+        #[serde(default = "default_text_color")]
+        color: String,
+        #[serde(default)]
+        align: TextAlign,
+        /// Khoảng cách dòng / cỡ chữ.
+        #[serde(default = "default_line_height")]
+        line_height: f32,
+    },
+}
+
+fn default_text_size() -> f32 {
+    72.0
+}
+fn default_text_color() -> String {
+    "#1D1D1F".into()
+}
+fn default_line_height() -> f32 {
+    1.35
+}
+
+/// Căn lề chữ trong khung.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(rename_all = "snake_case")]
+pub enum TextAlign {
+    #[default]
+    Left,
+    Center,
+    Right,
 }
 
 /// Pipeline xử lý ảnh (xem kế hoạch File 02).
@@ -98,10 +164,45 @@ pub enum ElementKind {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "snake_case")]
 pub enum PipelineChoice {
-    /// Tự chọn (Giai đoạn 1: luôn là line-art).
+    /// Tự nhận loại ảnh (`wb-vision::classify`).
     #[default]
     Auto,
+    /// Nhóm A — nét vẽ trên nền sáng: bàn tay đi theo đường tâm nét.
     LineArt,
+    /// Nhóm B — minh hoạ, clipart, sticker (thường có nền đồng màu / trong suốt).
+    Color,
+    /// Nhóm C — ảnh chụp, tranh tô kín khung.
+    Photo,
+    /// Nhóm E — SVG: bàn tay đi thẳng theo path có stroke (chỉ áp dụng cho file .svg).
+    Vector,
+}
+
+/// Kiểu vẽ một ảnh (kế hoạch File 02, Nhóm C bước 5).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(rename_all = "snake_case")]
+pub enum DrawStyle {
+    /// Theo loại ảnh: line-art → `sketch`; ảnh màu → `sketch_then_color`; ảnh chụp → `color_brush`.
+    #[default]
+    Auto,
+    /// Chỉ vẽ nét (line-art: nét gốc; ảnh màu/chụp: nét phác thảo chì — ảnh cuối là bản phác thảo).
+    Sketch,
+    /// Vẽ nét phác thảo trước, rồi cọ tô hiện màu ảnh gốc.
+    SketchThenColor,
+    /// Chỉ tô: lớp màu bị che, cọ lia qua lia lại tới đâu ảnh hiện tới đó.
+    ColorBrush,
+}
+
+/// Xử lý nền đồng màu quanh vật thể (ảnh màu / ảnh chụp; line-art luôn tách giấy).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(rename_all = "snake_case")]
+pub enum BackgroundMode {
+    /// Xoá nếu mép ảnh đồng màu (phông xanh, nền trắng clipart), ngược lại giữ.
+    #[default]
+    Auto,
+    Keep,
+    Remove,
 }
 
 /// Tham số trích xuất nét người dùng chỉnh được.
@@ -115,6 +216,8 @@ pub struct VisionParams {
     pub sensitivity: f32,
     /// Nét ngắn hơn ngưỡng này (px ở độ phân giải làm việc) thành "chấm vụn".
     pub min_stroke_length: f32,
+    /// Bán kính cọ tô, tính theo tỉ lệ cạnh dài của ảnh (0.025 = 2,5%).
+    pub brush_size: f32,
 }
 
 impl Default for VisionParams {
@@ -123,6 +226,7 @@ impl Default for VisionParams {
             working_size: 1400,
             sensitivity: 0.5,
             min_stroke_length: 6.0,
+            brush_size: 0.025,
         }
     }
 }
@@ -200,8 +304,19 @@ mod tests {
         assert_eq!(p.scenes[0].tail_ms, 1500);
         let el = &p.scenes[0].elements[0];
         assert_eq!(el.timing.gap_before_ms, 300);
-        let ElementKind::Image { pipeline, params, .. } = &el.kind;
+        let ElementKind::Image {
+            pipeline,
+            style,
+            background,
+            params,
+            ..
+        } = &el.kind
+        else {
+            panic!("phải là ảnh");
+        };
         assert_eq!(*pipeline, PipelineChoice::Auto);
+        assert_eq!(*style, DrawStyle::Auto);
+        assert_eq!(*background, BackgroundMode::Auto);
         assert_eq!(params.working_size, 1400);
     }
 

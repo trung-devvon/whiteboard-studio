@@ -1,0 +1,11 @@
+{
+  "id": "pencil-green",
+  "name": "Bút chì xanh (không có tay)",
+  "file": "hand.png",
+  "kind": "pencil",
+  "handedness": "none",
+  "anchor": [10, 1606],
+  "display_height": 420,
+  "license": "Tác giả dự án tự tạo (ảnh AI) — dùng tự do trong dự án",
+  "author": "tác giả dự án (đã xoá nền bằng `wb remove-bg`)"
+}

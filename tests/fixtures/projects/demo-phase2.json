@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "settings": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "seed": 1,
+    "background": "#FFFFFF",
+    "hand": "../../../assets/hands/pen-brown"
+  },
+  "scenes": [
+    {
+      "id": "s01",
+      "name": "chu-va-icon",
+      "elements": [
+        {
+          "id": "title",
+          "kind": {
+            "type": "text",
+            "text": "Chào mừng các bạn đến với bài học hôm nay",
+            "size": 84,
+            "align": "center"
+          },
+          "transform": { "x": 160, "y": 90, "w": 1600, "h": 260 },
+          "timing": { "gap_before_ms": 400, "settle_ms": 200 }
+        },
+        {
+          "id": "bulb",
+          "kind": { "type": "image", "src": "../images/A/a02-bong-den.svg" },
+          "transform": { "x": 560, "y": 400, "w": 800, "h": 600 },
+          "timing": { "gap_before_ms": 300, "settle_ms": 300 }
+        }
+      ],
+      "tail_ms": 1000
+    },
+    {
+      "id": "s02",
+      "name": "svg-to-mau",
+      "elements": [
+        {
+          "id": "house",
+          "kind": { "type": "image", "src": "../images/E/e01-ngoi-nha-mau.svg" },
+          "transform": { "x": 80, "y": 140, "w": 1100, "h": 820 },
+          "timing": { "gap_before_ms": 400, "settle_ms": 300 }
+        },
+        {
+          "id": "caption",
+          "kind": {
+            "type": "text",
+            "text": "Ngôi nhà mơ ước\ncủa chúng mình",
+            "size": 72,
+            "color": "#C0392B"
+          },
+          "transform": { "x": 1200, "y": 420, "w": 680, "h": 300 },
+          "timing": { "gap_before_ms": 300, "settle_ms": 300 }
+        }
+      ],
+      "tail_ms": 1200
+    }
+  ]
+}

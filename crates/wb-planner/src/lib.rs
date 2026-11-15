@@ -8,6 +8,7 @@
 //! Phải biên dịch được sang wasm32 (không I/O).
 
 pub mod geometry;
+pub mod hatch;
 pub mod order;
 
 use rstar::{RTree, primitives::GeomWithData};

@@ -5,13 +5,15 @@
 //! Đồng bộ theo lời thoại (marker) ở Giai đoạn 4. Kế hoạch: `not_push_git/04-…` §3.
 //! Phải biên dịch được sang wasm32 (không I/O).
 
-use wb_model::{DrawPlan, Timing};
+use wb_model::{DrawPlan, StrokeKind, Timing};
 
 /// Tham số tốc độ (đơn vị px khung tham chiếu 1920×1080, ms).
 #[derive(Debug, Clone, Copy)]
 pub struct TimingParams {
     /// Tốc độ vẽ danh nghĩa (px/giây).
     pub draw_speed: f32,
+    /// Tốc độ cọ tô (nét `Fill`, px/giây) — cọ rộng nên đi nhanh hơn bút.
+    pub fill_speed: f32,
     /// Tốc độ di chuyển khi nhấc bút (px/giây).
     pub travel_speed: f32,
     /// Thời gian nhấc bút tối thiểu / tối đa giữa hai nét (ms).
@@ -26,6 +28,7 @@ impl Default for TimingParams {
     fn default() -> Self {
         Self {
             draw_speed: 1400.0,
+            fill_speed: 4200.0,
             travel_speed: 3500.0,
             lift_min_ms: 60.0,
             lift_max_ms: 220.0,
@@ -96,7 +99,14 @@ pub fn resolve(scenes: &[SceneInput], p: &TimingParams) -> Timeline {
             let strokes = &el.plan.strokes;
             let draw: Vec<f64> = strokes
                 .iter()
-                .map(|s| (s.length * el.scale / p.draw_speed) as f64 * 1000.0)
+                .map(|s| {
+                    let speed = if s.kind == StrokeKind::Fill {
+                        p.fill_speed
+                    } else {
+                        p.draw_speed
+                    };
+                    (s.length * el.scale / speed) as f64 * 1000.0
+                })
                 .collect();
             let lift: Vec<f64> = (0..strokes.len())
                 .map(|i| {
