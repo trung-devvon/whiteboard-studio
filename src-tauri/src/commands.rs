@@ -9,6 +9,7 @@ use std::time::Instant;
 use tauri::State;
 use tauri::ipc::{Channel, Response};
 use wb_compile::hands::{self, HandEntry, HandMeta};
+use wb_compile::icons::IconIndex;
 use wb_compile::{AnalysisCache, CompileContext, prepare};
 use wb_model::Project;
 use wb_project::ProjectDir;
@@ -21,6 +22,8 @@ pub struct AppState {
     cache: Arc<AnalysisCache>,
     /// Cờ huỷ của lần xuất video đang chạy.
     export_cancel: Mutex<Option<Arc<AtomicBool>>>,
+    /// Chỉ mục tìm icon (nạp lần đầu dùng).
+    icons: std::sync::OnceLock<Option<IconIndex>>,
 }
 
 impl AppState {
@@ -30,6 +33,7 @@ impl AppState {
             user_dir,
             cache: Arc::new(AnalysisCache::new()),
             export_cancel: Mutex::new(None),
+            icons: std::sync::OnceLock::new(),
         }
     }
 
@@ -230,6 +234,41 @@ pub fn hand_delete(state: State<'_, AppState>, path: String) -> CmdResult<()> {
     }
     let dir = state.ctx(".").resolve(&path).map_err(err_chain)?;
     std::fs::remove_dir_all(&dir).map_err(err)
+}
+
+#[derive(Serialize)]
+pub struct IconDto {
+    name: String,
+    /// Giá trị ghi vào element ảnh (`builtin:icons/lucide/icons/….svg`).
+    src: String,
+    /// Nội dung SVG để hiện ô xem trước.
+    svg: String,
+}
+
+/// Tìm icon có sẵn (tiếng Anh hoặc tiếng Việt). Chuỗi rỗng → danh sách gợi ý.
+#[tauri::command]
+pub fn icons_search(state: State<'_, AppState>, query: String, limit: Option<usize>) -> CmdResult<Vec<IconDto>> {
+    let assets = state.ctx(".").assets();
+    let index = state.icons.get_or_init(|| {
+        assets
+            .as_ref()
+            .and_then(|a| IconIndex::load(&wb_compile::icons::lucide_dir(a)).ok())
+    });
+    let (Some(index), Some(assets)) = (index, assets) else {
+        return Err("không tìm thấy thư viện icon (assets/icons/lucide)".into());
+    };
+    Ok(index
+        .search(&query, limit.unwrap_or(120))
+        .into_iter()
+        .filter_map(|h| {
+            let path = assets.join(h.src.strip_prefix(wb_compile::BUILTIN_PREFIX)?);
+            Some(IconDto {
+                svg: std::fs::read_to_string(path).ok()?,
+                name: h.name,
+                src: h.src,
+            })
+        })
+        .collect())
 }
 
 #[derive(Serialize)]

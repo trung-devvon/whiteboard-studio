@@ -10,6 +10,7 @@ import type {
 } from "../bindings/model";
 import type { ElementInfo, HandEntry } from "../api";
 import { boxOf, findElement, useEditor } from "../store";
+import { CONTENT } from "../theme";
 import { ColorField, NumberField, SelectField, TextField } from "./fields";
 
 const STYLES: [DrawStyle, string][] = [
@@ -78,7 +79,7 @@ function ElementProps({ el, info }: { el: Element; info?: ElementInfo }) {
         <section>
           <TextField label="Nội dung" multiline value={k.text} onCommit={(text) => updateKind(el.id, { text })} />
           <NumberField label="Cỡ chữ" value={k.size ?? 72} min={8} max={600} onCommit={(size) => updateKind(el.id, { size })} />
-          <ColorField label="Màu" value={k.color ?? "#1D1D1F"} onChange={(color) => updateKind(el.id, { color })} />
+          <ColorField label="Màu" value={k.color ?? CONTENT.ink} onChange={(color) => updateKind(el.id, { color })} />
           <SelectField label="Căn lề" value={k.align ?? "left"} options={ALIGNS} onChange={(align) => updateKind(el.id, { align })} />
           <NumberField
             label="Giãn dòng"
@@ -172,7 +173,7 @@ function SceneProps({ hands, onManageHands }: { hands: HandEntry[]; onManageHand
         <TextField label="Tên" value={scene.name ?? ""} onCommit={(v) => renameScene(i, v)} />
         <ColorField
           label="Màu nền"
-          value={scene.background ?? set.background ?? "#FFFFFF"}
+          value={scene.background ?? set.background ?? CONTENT.background}
           onChange={(background) => updateScene(i, { background })}
         />
         <NumberField
@@ -212,7 +213,7 @@ function SceneProps({ hands, onManageHands }: { hands: HandEntry[]; onManageHand
           suffix="px/s"
           onCommit={(draw_speed) => updateSettings({ draw_speed })}
         />
-        <ColorField label="Nền mặc định" value={set.background ?? "#FFFFFF"} onChange={(background) => updateSettings({ background })} />
+        <ColorField label="Nền mặc định" value={set.background ?? CONTENT.background} onChange={(background) => updateSettings({ background })} />
         <NumberField label="FPS xuất" value={set.fps ?? 30} min={10} max={60} onCommit={(fps) => updateSettings({ fps })} />
       </section>
     </>

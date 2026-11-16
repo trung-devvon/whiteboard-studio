@@ -39,6 +39,19 @@ export async function installMock() {
         return { root: "C:/demo/demo-phase2.wbproj", project, recovery: null };
       case "compile_preview":
         return packed.buffer;
+      case "icons_search": {
+        // giả lập: lọc theo tên trong một danh sách nhỏ
+        const names = ["arrow-right", "arrow-left", "arrow-up", "arrow-down", "redo", "lightbulb", "house", "user", "users", "star", "heart", "rocket", "clock", "book-open"];
+        const q = String(a.query ?? "").toLowerCase();
+        const pick = names.filter((n) => !q || n.includes(q) || (q.includes("tên") && n.startsWith("arrow")));
+        return Promise.all(
+          pick.map(async (name) => ({
+            name,
+            src: `builtin:icons/lucide/icons/${name}.svg`,
+            svg: await (await fetch(`/assets/icons/lucide/icons/${name}.svg`)).text(),
+          })),
+        );
+      }
       case "hands_list":
         return Object.entries(hands).map(([path, h]) => ({
           path,

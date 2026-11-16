@@ -15,7 +15,8 @@ export type HandMeta = {
   wrist?: [[number, number], [number, number]] | null;
   [extra: string]: unknown;
 };
-export type HandDetail = { meta: HandMeta; width: number; height: number; editable: boolean };
+export type IconHit = { name: string; src: string; svg: string };
+export type HandDetail ={ meta: HandMeta; width: number; height: number; editable: boolean };
 
 export type ElementInfo = {
   scene: string;
@@ -41,6 +42,8 @@ export const api = {
   autosave: (root: string, project: Project) => invoke<void>("project_autosave", { root, project }),
   discardAutosave: (root: string) => invoke<void>("project_discard_autosave", { root }),
   importAsset: (root: string, src: string) => invoke<string>("asset_import", { root, src }),
+  /** Tìm icon có sẵn (gõ tiếng Việt hoặc tiếng Anh; rỗng = gợi ý). */
+  icons: (query: string, limit?: number) => invoke<IconHit[]>("icons_search", { query, limit }),
   hands: () => invoke<HandEntry[]>("hands_list"),
   handImport: (src: string, name: string) => invoke<string>("hand_import", { src, name }),
   handDuplicate: (path: string) => invoke<string>("hand_duplicate", { path }),

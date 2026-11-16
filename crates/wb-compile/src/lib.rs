@@ -7,6 +7,7 @@ pub mod analyze;
 pub mod cache;
 pub mod debug;
 pub mod hands;
+pub mod icons;
 pub mod text;
 pub mod vector;
 

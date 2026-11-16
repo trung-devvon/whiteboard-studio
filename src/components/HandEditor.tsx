@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api, errorText, type HandDetail, type HandEntry, type HandMeta } from "../api";
 import { NumberField, TextField } from "./fields";
+import { PALETTE, clayAlpha } from "../theme";
 
 type Mode = "none" | "anchor" | "wrist1" | "wrist2";
 type Pt = [number, number];
@@ -315,27 +316,27 @@ function HandCanvas(props: {
           <rect width={W} height={H} />
         </clipPath>
         <pattern id="checker" width={r * 4} height={r * 4} patternUnits="userSpaceOnUse">
-          <rect width={r * 4} height={r * 4} fill="#fff" />
-          <rect width={r * 2} height={r * 2} fill="#eee" />
-          <rect x={r * 2} y={r * 2} width={r * 2} height={r * 2} fill="#eee" />
+          <rect width={r * 4} height={r * 4} fill={PALETTE.white} />
+          <rect width={r * 2} height={r * 2} fill={PALETTE.beige} />
+          <rect x={r * 2} y={r * 2} width={r * 2} height={r * 2} fill={PALETTE.beige} />
         </pattern>
       </defs>
       <rect width={W} height={H} fill="url(#checker)" />
       <image href={src} width={W} height={H} />
-      {cut && <polygon points={cut} fill="rgba(200,40,40,0.25)" clipPath="url(#he-clip)" />}
+      {cut && <polygon points={cut} fill={clayAlpha(0.3)} clipPath="url(#he-clip)" />}
       {meta.wrist && (
         <line
           x1={meta.wrist[0][0]}
           y1={meta.wrist[0][1]}
           x2={meta.wrist[1][0]}
           y2={meta.wrist[1][1]}
-          stroke="#2f6fed"
+          stroke={PALETTE.clay}
           strokeWidth={r / 2.5}
         />
       )}
-      {pending && <circle cx={pending[0]} cy={pending[1]} r={r / 1.5} fill="#2f6fed" />}
-      <circle cx={meta.anchor[0]} cy={meta.anchor[1]} r={r} fill="none" stroke="#e02424" strokeWidth={r / 3} />
-      <circle cx={meta.anchor[0]} cy={meta.anchor[1]} r={r / 4} fill="#e02424" />
+      {pending && <circle cx={pending[0]} cy={pending[1]} r={r / 1.5} fill={PALETTE.clay} />}
+      <circle cx={meta.anchor[0]} cy={meta.anchor[1]} r={r} fill="none" stroke={PALETTE.ink} strokeWidth={r / 3} />
+      <circle cx={meta.anchor[0]} cy={meta.anchor[1]} r={r / 4} fill={PALETTE.ink} />
     </svg>
   );
 }

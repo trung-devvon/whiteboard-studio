@@ -36,6 +36,7 @@ pub fn run() {
             commands::hand_image,
             commands::hand_save,
             commands::hand_delete,
+            commands::icons_search,
             commands::compile_preview,
             commands::export_video,
             commands::export_cancel,

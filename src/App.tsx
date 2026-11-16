@@ -14,6 +14,8 @@ import Inspector from "./components/Inspector";
 import Timebar from "./components/Timebar";
 import ExportDialog from "./components/ExportDialog";
 import HandEditor from "./components/HandEditor";
+import IconPicker from "./components/IconPicker";
+import { CONTENT } from "./theme";
 import "./App.css";
 
 /** Độ phân giải Player trong editor (khung xuất thật dùng cỡ dự án). */
@@ -140,6 +142,7 @@ function Editor() {
   const [hands, setHands] = useState<HandEntry[]>([]);
   const [exporting, setExporting] = useState(false);
   const [handEditor, setHandEditor] = useState(false);
+  const [iconPicker, setIconPicker] = useState(false);
   /** Tăng khi bộ tay đổi trên đĩa → biên dịch lại xem trước dù dự án không đổi. */
   const [handVersion, setHandVersion] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -291,7 +294,7 @@ function Editor() {
     useEditor
       .getState()
       .addElement(
-        { type: "text", text: "Chữ viết tay", size: 72, color: "#1D1D1F", align: "center", line_height: 1.35 },
+        { type: "text", text: "Chữ viết tay", size: 72, color: CONTENT.ink, align: "center", line_height: 1.35 },
         { x: 360, y: 120, w: 1200, h: 110 },
       );
   }
@@ -356,6 +359,9 @@ function Editor() {
         <span className="sep" />
         <button onClick={addImage}>＋ Ảnh</button>
         <button onClick={addText}>＋ Chữ</button>
+        <button onClick={() => setIconPicker(true)} title="Icon, mũi tên có sẵn">
+          ＋ Icon
+        </button>
         <span className="grow" />
         {message && <span className="msg">{message}</span>}
         <button className="primary" onClick={() => setExporting(true)}>
@@ -371,6 +377,15 @@ function Editor() {
       <Inspector info={info} hands={hands} onManageHands={() => setHandEditor(true)} />
 
       {exporting && <ExportDialog root={root} project={project} onClose={() => setExporting(false)} />}
+      {iconPicker && (
+        <IconPicker
+          onClose={() => setIconPicker(false)}
+          onPick={(icon) => {
+            useEditor.getState().addElement({ type: "image", src: icon.src }, { x: 760, y: 340, w: 400, h: 400 });
+            setIconPicker(false);
+          }}
+        />
+      )}
       {handEditor && (
         <HandEditor
           current={project.settings?.hand ?? null}

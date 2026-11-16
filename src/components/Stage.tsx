@@ -1,11 +1,15 @@
 // Sân khấu: khung Player (canvas WASM) + lớp Konva để chọn/kéo/đổi cỡ element.
 // Toạ độ trong dự án tính theo khung tham chiếu 1920×1080; ở đây nhân `scale` để hiển thị.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Layer, Rect, Stage as KStage, Text as KText, Transformer } from "react-konva";
+import { Label, Layer, Line, Rect, Stage as KStage, Tag, Text as KText, Transformer } from "react-konva";
 import type Konva from "konva";
 import type { Element } from "../bindings/model";
 import type { Preview } from "../player";
 import { REF_H, REF_W, boxOf, useEditor } from "../store";
+import { PALETTE, inkAlpha } from "../theme";
+
+/** Khoảng cách (px màn hình) để hút vào đường gióng. */
+const SNAP_PX = 6;
 
 type Props = {
   preview: Preview | null;
@@ -76,7 +80,39 @@ function Overlay({ scale, width, height }: { scale: number; width: number; heigh
     t.getLayer()?.batchDraw();
   }, [selectedId, scene]);
 
+  // bắt dính: cạnh trái/giữa/phải (trên/giữa/dưới) của element đang kéo hút vào mép + giữa khung
+  // và cạnh/giữa các element khác; giữ Alt để tắt
+  const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
+  const snap = (e: Element, node: Konva.Node, alt: boolean) => {
+    if (alt || !scene) return setGuides({ v: [], h: [] });
+    const w = node.width() * node.scaleX();
+    const h = node.height() * node.scaleY();
+    const vs = [0, width / 2, width];
+    const hs = [0, height / 2, height];
+    for (const o of scene.elements) {
+      if (o.id === e.id) continue;
+      const b = boxOf(o);
+      vs.push(b.x * scale, (b.x + b.w / 2) * scale, (b.x + b.w) * scale);
+      hs.push(b.y * scale, (b.y + b.h / 2) * scale, (b.y + b.h) * scale);
+    }
+    const best = (pos: number, size: number, targets: number[]) => {
+      let r: { d: number; at: number } | null = null;
+      for (const edge of [pos, pos + size / 2, pos + size])
+        for (const t of targets) {
+          const d = t - edge;
+          if (Math.abs(d) <= SNAP_PX && (!r || Math.abs(d) < Math.abs(r.d))) r = { d, at: t };
+        }
+      return r;
+    };
+    const bx = best(node.x(), w, vs);
+    const by = best(node.y(), h, hs);
+    if (bx) node.x(node.x() + bx.d);
+    if (by) node.y(node.y() + by.d);
+    setGuides({ v: bx ? [bx.at] : [], h: by ? [by.at] : [] });
+  };
+
   const commit = (e: Element, node: Konva.Node) => {
+    setGuides({ v: [], h: [] });
     const w = Math.max(20, (node.width() * node.scaleX()) / scale);
     const h = Math.max(20, (node.height() * node.scaleY()) / scale);
     node.scale({ x: 1, y: 1 });
@@ -94,6 +130,23 @@ function Overlay({ scale, width, height }: { scale: number; width: number; heigh
       onMouseDown={(ev) => ev.target === ev.target.getStage() && select(null)}
     >
       <Layer>
+        {/* quầng trắng dưới mọi nét vẽ đè lên hình (skill whiteboard-ui, quy tắc 5) */}
+        {scene?.elements.map((e) => {
+          const b = boxOf(e);
+          return (
+            <Rect
+              key={`halo-${e.id}`}
+              x={b.x * scale}
+              y={b.y * scale}
+              width={b.w * scale}
+              height={b.h * scale}
+              stroke={PALETTE.white}
+              strokeWidth={3}
+              strokeScaleEnabled={false}
+              listening={false}
+            />
+          );
+        })}
         {scene?.elements.map((e, i) => {
           const b = boxOf(e);
           const sel = e.id === selectedId;
@@ -105,38 +158,49 @@ function Overlay({ scale, width, height }: { scale: number; width: number; heigh
               y={b.y * scale}
               width={b.w * scale}
               height={b.h * scale}
-              stroke={sel ? "#2f6fed" : "rgba(47,111,237,0.35)"}
+              stroke={sel ? PALETTE.clay : PALETTE.ink}
               dash={sel ? undefined : [6, 4]}
-              strokeWidth={1}
+              strokeWidth={sel ? 2 : 1}
               strokeScaleEnabled={false}
-              fill="rgba(0,0,0,0.001)"
+              fill={inkAlpha(0.001)}
               draggable
               onMouseDown={() => select(e.id)}
+              onDragMove={(ev) => snap(e, ev.target, ev.evt.altKey)}
               onDragEnd={(ev) => commit(e, ev.target)}
               onTransformEnd={(ev) => commit(e, ev.target)}
               name={`#${i + 1}`}
             />
           );
         })}
+        {/* số thứ tự: chữ trắng trên tấm nền mực, không bao giờ nằm trần trên hình */}
         {scene?.elements.map((e, i) => {
           const b = boxOf(e);
+          const sel = e.id === selectedId;
           return (
-            <KText
-              key={`n-${e.id}`}
-              x={b.x * scale + 4}
-              y={b.y * scale + 4}
-              text={`${i + 1}`}
-              fontSize={11}
-              fill="#2f6fed"
-              listening={false}
-            />
+            <Label key={`n-${e.id}`} x={b.x * scale + 4} y={b.y * scale + 4} listening={false}>
+              <Tag fill={sel ? PALETTE.clay : PALETTE.ink} stroke={PALETTE.white} strokeWidth={1} cornerRadius={3} />
+              <KText text={`${i + 1}`} fontSize={11} fontStyle="bold" fill={PALETTE.white} padding={3} />
+            </Label>
           );
         })}
+        {guides.v.map((x) => [
+          <Line key={`vh${x}`} points={[x, 0, x, height]} stroke={PALETTE.white} strokeWidth={3} listening={false} />,
+          <Line key={`v${x}`} points={[x, 0, x, height]} stroke={PALETTE.clay} strokeWidth={1} dash={[4, 4]} listening={false} />,
+        ])}
+        {guides.h.map((y) => [
+          <Line key={`hh${y}`} points={[0, y, width, y]} stroke={PALETTE.white} strokeWidth={3} listening={false} />,
+          <Line key={`h${y}`} points={[0, y, width, y]} stroke={PALETTE.clay} strokeWidth={1} dash={[4, 4]} listening={false} />,
+        ])}
         <Transformer
           ref={tr}
           rotateEnabled={false}
           keepRatio={false}
           ignoreStroke
+          borderStroke={PALETTE.clay}
+          anchorStroke={PALETTE.clay}
+          anchorFill={PALETTE.white}
+          anchorSize={8}
+          anchorCornerRadius={2}
           boundBoxFunc={(oldB, newB) => (newB.width < 10 || newB.height < 10 ? oldB : newB)}
         />
       </Layer>

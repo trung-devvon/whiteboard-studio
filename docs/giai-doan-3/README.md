@@ -8,7 +8,7 @@
 |---|---|
 | ProjectStore: tạo/mở/lưu `*.wbproj`, ghi atomic, autosave, khôi phục sau sự cố, khung migration | ✅ `wb-project` (5 test) |
 | Editor: danh sách scene, thêm ảnh/chữ, kéo/đổi cỡ (Konva Transformer), Inspector | ✅ |
-| Thêm icon / mũi tên, snap & đường gióng | ⏳ chưa làm |
+| Thêm icon / mũi tên, snap & đường gióng | ✅ phần 3 — xem mục 7 |
 | Undo/redo (zundo), phím tắt | ✅ Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z, Ctrl+S, Delete, Space, Esc |
 | i18n khung (vi/en) | ⏳ chưa làm (giao diện hiện chỉ tiếng Việt) |
 | Phân tích ảnh chạy nền + tiến độ qua Channel | ✅ biên dịch ở luồng nền (`spawn_blocking`), có đệm phân tích; xuất video báo tiến độ qua `Channel` |
@@ -64,7 +64,7 @@ npm run dev             # mở http://localhost:1420 → "Mở dự án…"
 - Gỡ bỏ code spike Giai đoạn 0 (`spikes/`, `src/spike`, `src-tauri/src/spike.rs`) cùng 2 ngoại lệ `cargo deny` của rustybuzz/ttf-parser.
 
 ## 5. Việc còn lại của Giai đoạn 3
-1. Icon (Lucide/Tabler) + mũi tên; snap & đường gióng.
+1. Đổi màu icon; thêm bộ Tabler nếu cần.
 2. Overlay thứ tự nét khi chọn element; keyframe snapshot để tua ngược nhanh.
 3. i18n vi/en.
 4. Gửi gói theo scene thay vì cả dự án khi dự án lớn.
@@ -80,3 +80,10 @@ npm run dev             # mở http://localhost:1420 → "Mở dự án…"
   - Tay có sẵn: *Sao chép để chỉnh*. *Dùng cho dự án* đặt `settings.hand`.
 - Test mới: `hands` (nhập ảnh/cắt gọn/đoán mũi bút, giữ trường lạ trong `hand.json`, tên thư mục bỏ dấu), dự án mẫu biên dịch được (`sample_project_compiles_from_builtin_assets`). Tổng 68 test.
 - Đã thử trong trình duyệt (mock): màn hình chào, mở trình chỉnh tay, chọn tay, kẻ lại đường cổ tay. **Chưa thử trong app Tauri thật** (hộp thoại chọn file, lưu `hand.json`, hỏi khi đóng cửa sổ).
+
+## 7. Phần 3 (2026-11-17): icon, mũi tên, bắt dính
+- **Thư viện icon Lucide** (2.359 icon, ISC) trong `assets/icons/lucide/`. Nút **＋ Icon** → tìm bằng tiếng Việt (có/không dấu: "mũi tên phải", "bóng đèn", "nha") hoặc tiếng Anh, có các nút gợi ý nhanh. Icon thêm vào như ảnh SVG `builtin:icons/lucide/icons/<tên>.svg` → bàn tay đi đúng theo nét icon (phân tích 15–40 ms, phủ ~100%).
+- Mũi tên = các icon `arrow-*`, `move-*`, `corner-*`, `redo/undo` (hiện đầu tiên khi chưa gõ gì).
+- `wb_compile::icons::IconIndex`: chấm điểm theo tên/thẻ; bảng ~100 từ khoá tiếng Việt → tiếng Anh; test `english_and_vietnamese_queries_find_icons`.
+- **Bắt dính khi kéo**: cạnh trái/giữa/phải (trên/giữa/dưới) hút vào mép + giữa khung và cạnh/giữa element khác trong 6 px, hiện đường gióng hồng; giữ **Alt** để tắt.
+- Đã thử trong trình duyệt (mock): mở hộp icon, thêm icon, kéo lệch 3 px → hút về giữa khung.
