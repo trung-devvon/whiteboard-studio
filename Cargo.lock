@@ -5062,9 +5062,11 @@ dependencies = [
  "serde",
  "serde_json",
  "tiny-skia",
+ "unicode-normalization",
  "wb-engine",
  "wb-model",
  "wb-planner",
+ "wb-project",
  "wb-text",
  "wb-timing",
  "wb-vision",
@@ -5295,6 +5297,7 @@ name = "whiteboard-studio"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "image",
  "serde",
  "serde_json",
  "tauri",

@@ -6,6 +6,7 @@
 pub mod analyze;
 pub mod cache;
 pub mod debug;
+pub mod hands;
 pub mod text;
 pub mod vector;
 
@@ -15,7 +16,6 @@ pub use wb_engine::Bundle;
 
 use anyhow::{Context, Result, bail};
 use image::RgbaImage;
-use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use wb_engine::{BundleElement, BundleHand, BundleScene, Engine, HandSprite, Pixmap, RawImage, pixmap_from_rgba};
@@ -52,16 +52,21 @@ pub struct CompileContext {
     pub base_dir: PathBuf,
     /// Thư mục `assets/` của app (tay, font có sẵn). `None` → tự dò ngược lên từ `base_dir` / thư mục hiện tại.
     pub assets_dir: Option<PathBuf>,
+    /// Thư mục dữ liệu của người dùng (tay tự thêm…) — cho đường dẫn `user:…`.
+    pub user_dir: Option<PathBuf>,
 }
 
 /// Tiền tố đường dẫn tới tài nguyên có sẵn của app, vd. `"builtin:hands/pen-brown"`.
 pub const BUILTIN_PREFIX: &str = "builtin:";
+/// Tiền tố đường dẫn tới dữ liệu người dùng, vd. `"user:hands/tay-cua-toi"`.
+pub const USER_PREFIX: &str = "user:";
 
 impl CompileContext {
     pub fn new(base_dir: impl Into<PathBuf>) -> Self {
         Self {
             base_dir: base_dir.into(),
             assets_dir: None,
+            user_dir: None,
         }
     }
 
@@ -78,10 +83,17 @@ impl CompileContext {
 
     /// Đổi đường dẫn trong dự án thành đường dẫn thật: `builtin:…` → trong `assets/`, còn lại tính từ `base_dir`.
     pub fn resolve(&self, rel: &str) -> Result<PathBuf> {
-        match rel.strip_prefix(BUILTIN_PREFIX) {
-            Some(r) => Ok(self.assets().context("không tìm thấy thư mục assets/ của app")?.join(r)),
-            None => Ok(self.base_dir.join(rel)),
+        if let Some(r) = rel.strip_prefix(BUILTIN_PREFIX) {
+            return Ok(self.assets().context("không tìm thấy thư mục assets/ của app")?.join(r));
         }
+        if let Some(r) = rel.strip_prefix(USER_PREFIX) {
+            return Ok(self
+                .user_dir
+                .as_ref()
+                .context("chưa có thư mục dữ liệu người dùng")?
+                .join(r));
+        }
+        Ok(self.base_dir.join(rel))
     }
 }
 
@@ -343,28 +355,12 @@ pub fn prepare(project: &Project, ctx: &CompileContext, cache: Option<&AnalysisC
     })
 }
 
-#[derive(Deserialize)]
-struct HandMeta {
-    file: String,
-    anchor: [f32; 2],
-    display_height: f32,
-    /// Hệ số phóng khi dùng kiểu "cả cánh tay" (mặc định 1,4).
-    #[serde(default)]
-    full_scale: Option<f32>,
-    /// Đường cổ tay `[điểm mép trên, điểm mép dưới]` (px ảnh) — cho kiểu "tới cổ tay".
-    #[serde(default)]
-    wrist: Option<[[f32; 2]; 2]>,
-}
-
 /// Hệ số phóng mặc định của kiểu "cả cánh tay".
 pub const DEFAULT_FULL_SCALE: f32 = 1.4;
 
 /// Nạp bàn tay từ thư mục chứa `hand.json` (ảnh PNG hoặc SVG) theo kiểu hiển thị và hệ số cỡ.
 pub fn load_hand(dir: &Path, mode: HandMode, scale: f32) -> Result<HandSprite> {
-    let meta_path = dir.join("hand.json");
-    let meta: HandMeta = serde_json::from_str(
-        &std::fs::read_to_string(&meta_path).with_context(|| format!("không đọc được {}", meta_path.display()))?,
-    )?;
+    let meta = hands::read_meta(dir)?;
     let file = dir.join(&meta.file);
     let (pixmap, unit) = if file.extension().is_some_and(|e| e.eq_ignore_ascii_case("svg")) {
         // rasterize SVG ở độ phân giải đủ nét cho 4K

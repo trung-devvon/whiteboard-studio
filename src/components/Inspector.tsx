@@ -8,7 +8,7 @@ import type {
   TextAlign,
   Timing,
 } from "../bindings/model";
-import type { ElementInfo, HandInfo } from "../api";
+import type { ElementInfo, HandEntry } from "../api";
 import { boxOf, findElement, useEditor } from "../store";
 import { ColorField, NumberField, SelectField, TextField } from "./fields";
 
@@ -40,15 +40,15 @@ const HAND_MODES: [HandMode, string][] = [
   ["full", "Cả cánh tay"],
 ];
 
-type Props = { info: ElementInfo[]; hands: HandInfo[] };
+type Props = { info: ElementInfo[]; hands: HandEntry[]; onManageHands: () => void };
 
-export default function Inspector({ info, hands }: Props) {
+export default function Inspector({ info, hands, onManageHands }: Props) {
   const project = useEditor((s) => s.project);
   const selectedId = useEditor((s) => s.selectedId);
   const el = findElement(project, selectedId);
   return (
     <aside className="panel right">
-      {el ? <ElementProps el={el} info={info.find((i) => i.id === el.id)} /> : <SceneProps hands={hands} />}
+      {el ? <ElementProps el={el} info={info.find((i) => i.id === el.id)} /> : <SceneProps hands={hands} onManageHands={onManageHands} />}
     </aside>
   );
 }
@@ -152,7 +152,7 @@ function ElementProps({ el, info }: { el: Element; info?: ElementInfo }) {
   );
 }
 
-function SceneProps({ hands }: { hands: HandInfo[] }) {
+function SceneProps({ hands, onManageHands }: { hands: HandEntry[]; onManageHands: () => void }) {
   const project = useEditor((s) => s.project);
   const sceneIndex = useEditor((s) => s.sceneIndex);
   const { renameScene, updateScene, updateSettings } = useEditor.getState();
@@ -190,6 +190,9 @@ function SceneProps({ hands }: { hands: HandInfo[] }) {
       </div>
       <section>
         <SelectField label="Bàn tay" value={set.hand ?? ""} options={handOptions} onChange={(hand) => updateSettings({ hand: hand || null })} />
+        <button className="link" onClick={onManageHands}>
+          Quản lý / thêm bàn tay…
+        </button>
         <SelectField label="Kiểu tay" value={set.hand_mode ?? "wrist"} options={HAND_MODES} onChange={(hand_mode) => updateSettings({ hand_mode })} />
         <NumberField
           label="Cỡ tay"

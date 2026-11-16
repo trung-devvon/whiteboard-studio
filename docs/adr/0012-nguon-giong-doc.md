@@ -19,6 +19,16 @@ Kế hoạch v1.1 chọn Edge-TTS (miễn phí, có WordBoundary) làm giọng �
 | ElevenLabs | Giọng tự nhiên nhất, API `with-timestamps` | Trả phí, hạn mức miễn phí nhỏ |
 | Chỉ offline (file + Whisper) | Miễn phí, không mạng, không key | Người dùng phải tự tạo audio ở công cụ khác |
 
+## Hạn mức miễn phí (tra cứu 2026-11-15 — cần kiểm lại trên trang giá chính thức trước khi chốt)
+| Dịch vụ | Miễn phí | Tiếng Việt | Mốc thời gian để đồng bộ |
+|---|---|---|---|
+| Azure AI Speech (gói F0) | ~0,5 triệu ký tự/tháng giọng neural; hết thì bị chặn, không tự tính tiền | Có (vi-VN, vd. HoaiMy, NamMinh) | WordBoundary chính thức |
+| Google Cloud TTS | ~4 triệu ký tự/tháng giọng Standard; khoảng 1 triệu/tháng cho giọng cao cấp (Chirp 3 HD…) | Có (vi-VN) | SSML `<mark/>` |
+| FPT.AI | ~100.000 ký tự/tháng | Giọng Việt bản địa | Không có mốc từng từ (cần Whisper alignment) |
+| Gemini API (TTS preview) | Vài chục yêu cầu/ngày, thay đổi theo thời điểm | Có (đa ngôn ngữ) | Không có (cần Whisper alignment) |
+
+Gợi ý cho giai đoạn thử nghiệm: **Azure F0** (đủ dùng thử, có mốc từng từ, giọng Việt tốt, không phát sinh phí khi vượt hạn mức) — vẫn cần tài khoản Azure. Chờ chủ dự án chốt.
+
 ## Hệ quả
 - Rủi ro R2 chuyển sang trạng thái "đã xảy ra" — đã xử lý bằng cách loại bỏ sớm (rẻ hơn nhiều so với phát hiện ở Giai đoạn 4).
 - Giai đoạn 4 cần thêm: màn hình nhập key TTS (lưu trong keyring), spike S3' với provider được chọn.

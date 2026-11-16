@@ -1,17 +1,19 @@
 // Editor Whiteboard Studio (Giai đoạn 3): mở/lưu dự án, sắp xếp cảnh & element, xem trước bằng Player WASM,
 // xuất MP4. Logic nặng (phân tích ảnh, render, xuất) nằm ở Rust; ở đây chỉ là giao diện.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
-import { save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { ask, open, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useStore } from "zustand";
-import { api, errorText, type ElementInfo, type HandInfo } from "./api";
+import { api, errorText, type ElementInfo, type HandEntry } from "./api";
 import { Preview } from "./player";
+import { forgetProject, recentProjects, rememberProject } from "./recent";
 import { clearHistory, redo, undo, useEditor } from "./store";
 import Stage from "./components/Stage";
 import ScenePanel from "./components/ScenePanel";
 import Inspector from "./components/Inspector";
 import Timebar from "./components/Timebar";
 import ExportDialog from "./components/ExportDialog";
+import HandEditor from "./components/HandEditor";
 import "./App.css";
 
 /** Độ phân giải Player trong editor (khung xuất thật dùng cỡ dự án). */
@@ -32,34 +34,90 @@ async function openProject(path: string) {
   }
   useEditor.getState().load(o.root, project, o.project);
   clearHistory();
+  rememberProject(o.root);
 }
 
-async function newProject() {
-  const path = await saveDialog({ defaultPath: "bai-hoc.wbproj", title: "Tạo dự án mới (thư mục .wbproj)" });
+/** Tạo dự án: chọn nơi lưu thư mục `.wbproj` (trống hoặc điền sẵn dự án mẫu). */
+async function newProject(sample: boolean) {
+  const path = await saveDialog({
+    defaultPath: sample ? "du-an-mau.wbproj" : "bai-hoc.wbproj",
+    title: "Chọn nơi lưu dự án (app sẽ tạo một thư mục .wbproj)",
+  });
   if (!path) return;
-  const o = await api.create(path);
+  const o = await api.create(path, sample);
   useEditor.getState().load(o.root, o.project, o.project);
   clearHistory();
+  rememberProject(o.root);
 }
 
 async function pickAndOpen() {
-  const dir = await open({ directory: true, title: "Mở dự án (chọn thư mục .wbproj)" });
+  const dir = await open({ directory: true, title: "Mở dự án — chọn thư mục .wbproj" });
   if (typeof dir === "string") await openProject(dir);
 }
 
 function Welcome() {
   const [err, setErr] = useState<string | null>(null);
-  const run = (f: () => Promise<void>) => () => f().catch((e) => setErr(errorText(e)));
+  const [recent, setRecent] = useState(recentProjects);
+  const run = (f: () => Promise<void>) => () => {
+    setErr(null);
+    f().catch((e) => setErr(errorText(e)));
+  };
+  const openRecent = (root: string) =>
+    openProject(root).catch((e) => {
+      setErr(`Không mở được ${root}: ${errorText(e)}`);
+      forgetProject(root);
+      setRecent(recentProjects());
+    });
+  const name = (root: string) => root.split(/[\\/]/).pop()?.replace(/\.wbproj$/i, "");
+
   return (
     <main className="welcome">
       <h1>Whiteboard Studio</h1>
-      <p className="muted">Tạo video vẽ tay trên bảng trắng từ ảnh và chữ.</p>
-      <div className="welcome-actions">
-        <button className="primary" onClick={run(newProject)}>
-          Dự án mới…
+      <p className="muted">Tạo video "bàn tay vẽ trên bảng trắng" từ ảnh và chữ.</p>
+
+      <div className="welcome-cards">
+        <button className="card primary" onClick={run(() => newProject(true))}>
+          <strong>Thử dự án mẫu</strong>
+          <span>Tạo sẵn 2 cảnh có chữ và hình — bấm ▶ để xem ngay.</span>
         </button>
-        <button onClick={run(pickAndOpen)}>Mở dự án…</button>
+        <button className="card" onClick={run(() => newProject(false))}>
+          <strong>Dự án mới</strong>
+          <span>Bắt đầu với một cảnh trống.</span>
+        </button>
+        <button className="card" onClick={run(pickAndOpen)}>
+          <strong>Mở dự án…</strong>
+          <span>Chọn một thư mục .wbproj đã có.</span>
+        </button>
       </div>
+
+      {recent.length > 0 && (
+        <section className="recent">
+          <h3>Mở gần đây</h3>
+          <ul>
+            {recent.map((r) => (
+              <li key={r.root}>
+                <button className="link" onClick={() => openRecent(r.root)} title={r.root}>
+                  {name(r.root)}
+                </button>
+                <small>{r.root}</small>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <details className="explain">
+        <summary>Dự án là gì?</summary>
+        <p>
+          Mỗi video là một <b>dự án</b> — một thư mục <code>tên.wbproj</code> trên máy bạn, chứa file <code>project.json</code>{" "}
+          (các cảnh, vị trí, chữ, cài đặt) và thư mục <code>assets/</code> (bản sao các ảnh bạn thêm vào). Nhờ vậy dự án mang đi
+          máy khác vẫn đủ ảnh. App tự lưu bản phòng sự cố khi bạn chưa bấm Lưu.
+        </p>
+        <p>
+          Cách làm video: thêm <b>cảnh</b> (cột trái) → thêm <b>ảnh/chữ</b> (thanh trên) → kéo vào chỗ trên bảng → thứ tự trong
+          danh sách "Thứ tự vẽ" là thứ tự bàn tay vẽ → bấm ▶ để xem → <b>Xuất video</b>.
+        </p>
+      </details>
       {err && <p className="err">{err}</p>}
     </main>
   );
@@ -79,8 +137,11 @@ function Editor() {
   const [info, setInfo] = useState<ElementInfo[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hands, setHands] = useState<HandInfo[]>([]);
+  const [hands, setHands] = useState<HandEntry[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [handEditor, setHandEditor] = useState(false);
+  /** Tăng khi bộ tay đổi trên đĩa → biên dịch lại xem trước dù dự án không đổi. */
+  const [handVersion, setHandVersion] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
 
   // thời gian: khi đang sửa, ghim ở cuối cảnh đang chọn (thấy đủ mọi element để sắp xếp)
@@ -89,9 +150,10 @@ function Editor() {
   const [playing, setPlaying] = useState(false);
   const shownTime = pinEnd && preview ? Math.max(0, (preview.sceneEnds[sceneIndex] ?? preview.duration) - 1) : time;
 
+  const loadHands = useCallback(() => api.hands().then(setHands).catch(() => {}), []);
   useEffect(() => {
-    api.builtinHands().then(setHands).catch(() => {});
-  }, []);
+    void loadHands();
+  }, [loadHands]);
 
   // biên dịch lại (có đệm phân tích) mỗi khi dự án đổi — gom các thay đổi liên tiếp
   const req = useRef(0);
@@ -113,7 +175,7 @@ function Editor() {
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [root, project]);
+  }, [root, project, handVersion]);
 
   // Player cũ được giải phóng khi có Player mới (bộ nhớ WASM không tự thu gom)
   useEffect(() => () => preview?.free(), [preview]);
@@ -168,6 +230,7 @@ function Editor() {
       setTimeout(() => setMessage(null), 1500);
     } catch (e) {
       setError(`Lưu thất bại: ${errorText(e)}`);
+      throw e;
     }
   }, []);
 
@@ -177,6 +240,38 @@ function Editor() {
     const t = setTimeout(() => api.autosave(root, project).catch(() => {}), AUTOSAVE_MS);
     return () => clearTimeout(t);
   }, [dirty, root, project]);
+
+  // đóng cửa sổ khi còn thay đổi chưa lưu → hỏi
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => {
+    let win: ReturnType<typeof getCurrentWindow>;
+    try {
+      win = getCurrentWindow();
+    } catch {
+      return; // không chạy trong Tauri (chế độ thử giao diện trên trình duyệt)
+    }
+    const un = win.onCloseRequested(async (e) => {
+      if (!dirtyRef.current) return;
+      e.preventDefault();
+      const keep = await ask("Dự án còn thay đổi chưa lưu. Lưu trước khi đóng?", {
+        title: "Whiteboard Studio",
+        kind: "warning",
+        okLabel: "Lưu rồi đóng",
+        cancelLabel: "Đóng, không lưu",
+      });
+      try {
+        if (keep) await save();
+        else await api.discardAutosave(useEditor.getState().root!);
+      } catch {
+        return; // lưu lỗi → giữ cửa sổ mở
+      }
+      await win.destroy();
+    });
+    return () => {
+      void un.then((f) => f());
+    };
+  }, [save]);
 
   async function addImage() {
     const file = await open({
@@ -201,6 +296,11 @@ function Editor() {
       );
   }
 
+  const leave = (f: () => Promise<void>) => () => {
+    if (dirty && !confirm("Bỏ các thay đổi chưa lưu?")) return;
+    f().catch((e) => setError(errorText(e)));
+  };
+
   // phím tắt
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -208,8 +308,8 @@ function Editor() {
       const k = e.key.toLowerCase();
       if (e.ctrlKey && k === "s") {
         e.preventDefault();
-        void save();
-      } else if (typing) {
+        void save().catch(() => {});
+      } else if (typing || document.querySelector(".modal-back")) {
         return;
       } else if (e.ctrlKey && k === "z" && !e.shiftKey) {
         e.preventDefault();
@@ -238,13 +338,12 @@ function Editor() {
           {name}
           {dirty && <span className="dirty" title="Có thay đổi chưa lưu"> •</span>}
         </strong>
-        <button onClick={() => (!dirty || confirm("Bỏ các thay đổi chưa lưu?")) && newProject().catch((e) => setError(errorText(e)))}>
-          Mới
+        <button onClick={leave(async () => useEditor.getState().close())} title="Về màn hình chào">
+          ⌂
         </button>
-        <button onClick={() => (!dirty || confirm("Bỏ các thay đổi chưa lưu?")) && pickAndOpen().catch((e) => setError(errorText(e)))}>
-          Mở
-        </button>
-        <button onClick={save} disabled={!dirty} title="Ctrl+S">
+        <button onClick={leave(() => newProject(false))}>Mới</button>
+        <button onClick={leave(pickAndOpen)}>Mở</button>
+        <button onClick={() => void save().catch(() => {})} disabled={!dirty} title="Ctrl+S">
           Lưu
         </button>
         <span className="sep" />
@@ -269,9 +368,26 @@ function Editor() {
         <Stage preview={preview} time={shownTime} playing={playing} busy={busy} error={error} />
         <Timebar preview={preview} time={shownTime} playing={playing} onPlay={() => setPlaying((p) => !p)} onSeek={seek} />
       </main>
-      <Inspector info={info} hands={hands} />
+      <Inspector info={info} hands={hands} onManageHands={() => setHandEditor(true)} />
 
       {exporting && <ExportDialog root={root} project={project} onClose={() => setExporting(false)} />}
+      {handEditor && (
+        <HandEditor
+          current={project.settings?.hand ?? null}
+          onUse={(hand) => {
+            useEditor.getState().updateSettings({ hand });
+            void loadHands();
+          }}
+          onChanged={() => {
+            void loadHands();
+            setHandVersion((v) => v + 1);
+          }}
+          onClose={() => {
+            setHandEditor(false);
+            void loadHands();
+          }}
+        />
+      )}
     </div>
   );
 }

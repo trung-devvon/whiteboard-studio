@@ -18,7 +18,8 @@ pub fn run() {
                 .ok()
                 .map(|d| d.join("assets"))
                 .filter(|d| d.join("hands").is_dir());
-            app.manage(AppState::new(assets_dir));
+            let user_dir = app.path().app_data_dir().ok();
+            app.manage(AppState::new(assets_dir, user_dir));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -28,7 +29,13 @@ pub fn run() {
             commands::project_autosave,
             commands::project_discard_autosave,
             commands::asset_import,
-            commands::builtin_hands,
+            commands::hands_list,
+            commands::hand_import,
+            commands::hand_duplicate,
+            commands::hand_load,
+            commands::hand_image,
+            commands::hand_save,
+            commands::hand_delete,
             commands::compile_preview,
             commands::export_video,
             commands::export_cancel,

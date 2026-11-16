@@ -31,6 +31,12 @@ Chỉ chấp nhận giấy phép dùng thương mại được (chính sách "Gi
 | `hands/pencil-purple` (PNG) | Tác giả dự án tự tạo (ảnh AI) | Dùng tự do trong dự án | Bút chì tím, 578×432 (hơi mờ ở 1080p). `hand-outline.svg` chỉ có viền, ruột trong suốt — không dùng |
 | `hands/pencil-green` (PNG) | Tác giả dự án tự tạo (ảnh AI; ảnh gốc giữ ở `not_push_git/hands-goc/`) | Dùng tự do trong dự án | Chỉ cây bút chì, không có tay. Nền đã xoá bằng `wb remove-bg`, 1619×1619 |
 
+## Ảnh mẫu (dự án mẫu trên màn hình chào)
+
+| Tên | Nguồn | Giấy phép |
+|---|---|---|
+| `samples/bong-den.svg`, `samples/ngoi-nha.svg` | Tự vẽ (code SVG) cho dự án — bản sao của `tests/fixtures/images/A/a02`, `E/e01` | self-made |
+
 ## Ảnh test
 
 | Tên | Nguồn | Giấy phép |

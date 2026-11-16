@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "settings": { "hand": "builtin:hands/pen-brown", "hand_mode": "wrist" },
+  "scenes": [
+    {
+      "id": "s1",
+      "name": "Mở đầu",
+      "elements": [
+        {
+          "id": "tieu-de",
+          "kind": { "type": "text", "text": "Chào mừng các bạn đến với bài học hôm nay", "size": 84, "align": "center" },
+          "transform": { "x": 160, "y": 90, "w": 1600, "h": 260 },
+          "timing": { "gap_before_ms": 400, "settle_ms": 200 }
+        },
+        {
+          "id": "bong-den",
+          "kind": { "type": "image", "src": "builtin:samples/bong-den.svg" },
+          "transform": { "x": 560, "y": 400, "w": 800, "h": 600 }
+        }
+      ],
+      "tail_ms": 1000
+    },
+    {
+      "id": "s2",
+      "name": "Ngôi nhà",
+      "elements": [
+        {
+          "id": "ngoi-nha",
+          "kind": { "type": "image", "src": "builtin:samples/ngoi-nha.svg" },
+          "transform": { "x": 80, "y": 140, "w": 1100, "h": 820 },
+          "timing": { "gap_before_ms": 400, "settle_ms": 300 }
+        },
+        {
+          "id": "chu-thich",
+          "kind": { "type": "text", "text": "Ngôi nhà mơ ước\ncủa chúng mình", "size": 72, "color": "#C0392B" },
+          "transform": { "x": 1200, "y": 420, "w": 680, "h": 300 }
+        }
+      ],
+      "tail_ms": 1200
+    }
+  ]
+}

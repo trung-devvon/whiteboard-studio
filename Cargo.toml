@@ -50,9 +50,16 @@ unsafe_code = "warn"
 dbg_macro = "warn"
 todo = "warn"
 
+# Thông tin gỡ lỗi chiếm phần lớn dung lượng target/ (trước đây ~22 GB):
+# - code của dự án: chỉ giữ số dòng (đủ cho backtrace khi panic)
+# - thư viện bên ngoài: bỏ hẳn
+[profile.dev]
+debug = "line-tables-only"
+
 # Build dev nhưng tối ưu thư viện phụ thuộc → thuật toán ảnh/video chạy nhanh khi debug
 [profile.dev.package."*"]
 opt-level = 2
+debug = false
 
 [profile.release]
 codegen-units = 1

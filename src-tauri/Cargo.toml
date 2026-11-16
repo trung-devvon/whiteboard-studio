@@ -23,6 +23,7 @@ tauri-plugin-dialog = "2"
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
+image.workspace = true
 wb-model.workspace = true
 wb-project.workspace = true
 wb-compile.workspace = true

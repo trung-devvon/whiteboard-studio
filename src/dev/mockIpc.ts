@@ -2,7 +2,7 @@
 // để xem/thử bố cục. Lệnh Rust được giả lập; Player dùng gói biên dịch thật tạo sẵn bằng:
 //   wb bundle tests/fixtures/projects/demo-phase2.json -o target/preview-bundle.bin
 // Thay đổi trên giao diện không biên dịch lại được (khung Player giữ nguyên).
-import { mockIPC } from "@tauri-apps/api/mocks";
+import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 
 const DEMO = "/tests/fixtures/projects/demo-phase2.json";
 const BUNDLE = "/target/preview-bundle.bin";
@@ -16,24 +16,50 @@ export async function installMock() {
   packed.set(header, 4);
   packed.set(bundle, 4 + header.length);
 
-  mockIPC((cmd) => {
+  // thư viện tay giả: đọc thẳng hand.json + ảnh trong assets/hands của repo
+  const hands: Record<string, { dir: string; editable: boolean }> = {
+    "builtin:hands/pen-brown": { dir: "/assets/hands/pen-brown", editable: false },
+    "builtin:hands/pencil-green": { dir: "/assets/hands/pencil-green", editable: false },
+    "user:hands/thu": { dir: "/assets/hands/pencil-purple", editable: true },
+  };
+  const metas: Record<string, unknown> = {};
+  for (const [p, h] of Object.entries(hands)) metas[p] = await (await fetch(`${h.dir}/hand.json`)).json();
+  const size = async (url: string) => {
+    const im = new Image();
+    im.src = url;
+    await im.decode();
+    return { width: im.naturalWidth, height: im.naturalHeight };
+  };
+
+  mockIPC(async (cmd, args) => {
+    const a = (args ?? {}) as Record<string, unknown>;
     switch (cmd) {
       case "project_open":
       case "project_create":
         return { root: "C:/demo/demo-phase2.wbproj", project, recovery: null };
       case "compile_preview":
         return packed.buffer;
-      case "builtin_hands":
-        return [
-          { path: "builtin:hands/pen-brown", name: "Bút nâu – tay phải" },
-          { path: "builtin:hands/pencil-green", name: "Bút chì xanh" },
-        ];
+      case "hands_list":
+        return Object.entries(hands).map(([path, h]) => ({
+          path,
+          name: (metas[path] as { name: string }).name,
+          editable: h.editable,
+          has_wrist: !!(metas[path] as { wrist?: unknown }).wrist,
+        }));
+      case "hand_load": {
+        const p = a.path as string;
+        return { meta: metas[p], ...(await size(`${hands[p].dir}/hand.png`)), editable: hands[p].editable };
+      }
+      case "hand_image":
+        return (await fetch(`${hands[a.path as string].dir}/hand.png`)).arrayBuffer();
+      case "hand_save":
+        metas[a.path as string] = a.meta;
+        return null;
       case "plugin:dialog|open":
         return "C:/demo/demo-phase2.wbproj";
-      case "plugin:dialog|save":
-        return null;
       default:
         return null;
     }
   });
+  mockWindows("main");
 }

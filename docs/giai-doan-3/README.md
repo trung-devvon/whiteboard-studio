@@ -1,4 +1,4 @@
-# Giai đoạn 3 — Ứng dụng Tauri & Editor (phần 1)
+# Giai đoạn 3 — Ứng dụng Tauri & Editor (phần 1–2)
 
 > Nhánh: `phase-1-core-engine` · Kế hoạch gốc: `not_push_git/06-lo-trinh-va-tieu-chi-hoan-thanh.md` (Giai đoạn 3) · Quyết định: [ADR-0022](../adr/0022-goi-bien-dich-va-player-wasm.md)
 
@@ -15,7 +15,9 @@
 | Overlay thứ tự nét | ⏳ mới đánh số thứ tự element, chưa vẽ thứ tự nét |
 | Player WASM + thanh tua | ✅ `wb-player`; tua ngược dựng lại scene từ đầu (chưa có keyframe snapshot) |
 | Hộp thoại Xuất video (tiến độ, huỷ, mở thư mục) | ✅ |
-| Trình chỉnh bàn tay (import, xoá phông, chấm mũi bút/cổ tay) | ⏳ chưa làm — tạm thời dùng `wb remove-bg` + sửa `hand.json` |
+| Trình chỉnh bàn tay (import, xoá phông, chấm mũi bút/cổ tay) | ✅ phần 2 — xem mục 6 |
+| Màn hình chào dễ hiểu: dự án mẫu, mở gần đây, giải thích "dự án là gì" | ✅ phần 2 |
+| Hỏi lưu khi đóng cửa sổ | ✅ phần 2 |
 
 **DoD** (người lạ tự làm video 3 scene; Player khớp video xuất < 2%; kill app không mất dữ liệu):
 - Khớp Player/xuất: cùng một gói → khung **giống hệt từng byte** (test `bundle_roundtrip_renders_identical_frames`); gói đã làm gọn cho Player lệch < 2% (test `preview_bundle_is_smaller_and_looks_the_same`).
@@ -62,9 +64,19 @@ npm run dev             # mở http://localhost:1420 → "Mở dự án…"
 - Gỡ bỏ code spike Giai đoạn 0 (`spikes/`, `src/spike`, `src-tauri/src/spike.rs`) cùng 2 ngoại lệ `cargo deny` của rustybuzz/ttf-parser.
 
 ## 5. Việc còn lại của Giai đoạn 3
-1. Trình chỉnh bàn tay trong app (xoá phông, chấm mũi bút + đường cổ tay, xem thử).
-2. Icon (Lucide/Tabler) + mũi tên; snap & đường gióng.
-3. Overlay thứ tự nét khi chọn element; keyframe snapshot để tua ngược nhanh.
-4. i18n vi/en; hỏi lưu khi đóng cửa sổ.
-5. Gửi gói theo scene thay vì cả dự án khi dự án lớn.
-6. Thử DoD với một người chưa từng dùng app.
+1. Icon (Lucide/Tabler) + mũi tên; snap & đường gióng.
+2. Overlay thứ tự nét khi chọn element; keyframe snapshot để tua ngược nhanh.
+3. i18n vi/en.
+4. Gửi gói theo scene thay vì cả dự án khi dự án lớn.
+5. Thử DoD với một người chưa từng dùng app.
+
+## 6. Phần 2 (2026-11-15): màn hình chào, đóng cửa sổ, trình chỉnh bàn tay
+- **Màn hình chào**: 3 lựa chọn — *Thử dự án mẫu* (tạo sẵn 2 cảnh dùng ảnh có sẵn `builtin:samples/…`, bấm ▶ xem ngay), *Dự án mới* (trống), *Mở dự án…*; danh sách **mở gần đây**; mục "Dự án là gì?" giải thích thư mục `.wbproj`. Nút ⌂ trên thanh công cụ để quay lại.
+- **Đóng cửa sổ khi chưa lưu** → hỏi "Lưu rồi đóng" / "Đóng, không lưu" (không lưu thì xoá bản tự lưu).
+- **Trình chỉnh bàn tay** (Inspector → "Quản lý / thêm bàn tay…"):
+  - Thư viện = tay có sẵn của app (`builtin:hands/…`, chỉ đọc) + **tay của bạn** (`user:hands/…`, nằm trong thư mục dữ liệu app `%APPDATA%/io.github.whiteboardstudio.app/hands/`).
+  - *Nhập ảnh tay…*: tự xoá nền đồng màu, cắt gọn, đoán mũi bút (`wb_compile::hands::import_hand`).
+  - *Chấm mũi bút*, *Kẻ đường cổ tay* (2 điểm; vùng sẽ cắt được tô đỏ mờ), *Cao khi hiện*, *Phóng kiểu cả tay* → **Lưu** ghi `hand.json` → xem trước tự cập nhật.
+  - Tay có sẵn: *Sao chép để chỉnh*. *Dùng cho dự án* đặt `settings.hand`.
+- Test mới: `hands` (nhập ảnh/cắt gọn/đoán mũi bút, giữ trường lạ trong `hand.json`, tên thư mục bỏ dấu), dự án mẫu biên dịch được (`sample_project_compiles_from_builtin_assets`). Tổng 68 test.
+- Đã thử trong trình duyệt (mock): màn hình chào, mở trình chỉnh tay, chọn tay, kẻ lại đường cổ tay. **Chưa thử trong app Tauri thật** (hộp thoại chọn file, lưu `hand.json`, hỏi khi đóng cửa sổ).

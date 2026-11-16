@@ -51,6 +51,13 @@ fn autosave_is_offered_as_recovery_until_saved() {
 }
 
 #[test]
+fn sample_project_parses() {
+    let p = sample_project();
+    assert_eq!(p.scenes.len(), 2);
+    assert_eq!(p.settings.hand.as_deref(), Some(DEFAULT_HAND));
+}
+
+#[test]
 fn broken_autosave_does_not_block_opening() {
     let root = tmp("broken");
     let dir = ProjectDir::create(&root, &new_project()).unwrap();

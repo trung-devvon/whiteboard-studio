@@ -85,6 +85,17 @@ fn cache_skips_reanalysis_when_only_position_changes() {
     assert_eq!(cache.len(), n + 1);
 }
 
+/// Dự án mẫu ("Thử dự án mẫu" trên màn hình chào) chỉ dùng tài nguyên `builtin:` → biên dịch được ở bất cứ đâu.
+#[test]
+fn sample_project_compiles_from_builtin_assets() {
+    let project = wb_project::sample_project();
+    let ctx = CompileContext::new(std::env::temp_dir());
+    let p = prepare(&project, &ctx, None).unwrap();
+    assert_eq!(p.report.len(), 4);
+    assert!(p.report.iter().all(|r| r.coverage >= 0.99));
+    assert!(p.bundle.hand.is_some());
+}
+
 #[test]
 fn builtin_paths_resolve_into_app_assets() {
     let ctx = CompileContext::new(std::env::temp_dir());

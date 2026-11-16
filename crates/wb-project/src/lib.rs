@@ -243,6 +243,11 @@ pub fn new_project() -> Project {
     }
 }
 
+/// Dự án mẫu (2 cảnh: chữ + bóng đèn, ngôi nhà + chú thích) dùng ảnh có sẵn của app — để thử nhanh.
+pub fn sample_project() -> Project {
+    serde_json::from_str(include_str!("sample.json")).expect("sample.json hợp lệ")
+}
+
 pub fn new_scene(n: usize) -> Scene {
     Scene {
         id: format!("s{n}"),
