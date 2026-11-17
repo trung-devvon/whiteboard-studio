@@ -123,6 +123,7 @@ pub(crate) fn spawn_encoder(
     fps: u32,
     enc: Encoder,
     bitrate: u32,
+    audio: Option<(&Path, f64)>,
     out: &Path,
     log: &Path,
 ) -> Result<Child, FfmpegError> {
@@ -138,10 +139,27 @@ pub(crate) fn spawn_encoder(
         "-pix_fmt",
         "rgba",
     ])
-    .args(["-s", &format!("{w}x{h}"), "-r", &fps.to_string(), "-i", "-"])
-    // RGB → YUV đúng ma trận BT.709, dải TV (tránh video nhạt/lệch màu)
-    .args(["-vf", "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p"])
-    .args(["-c:v", enc.ffmpeg_name(), "-b:v", &bitrate.to_string()]);
+    .args(["-s", &format!("{w}x{h}"), "-r", &fps.to_string(), "-i", "-"]);
+    // giọng đọc: WAV thứ hai, cắt từ đầu khoảng xuất; AAC (encoder có sẵn trong bản LGPL)
+    if let Some((wav, from_ms)) = audio {
+        cmd.args(["-ss", &format!("{:.3}", from_ms / 1000.0), "-i"])
+            .arg(wav)
+            .args([
+                "-map",
+                "0:v:0",
+                "-map",
+                "1:a:0",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "160k",
+                "-shortest",
+            ]);
+    }
+    cmd
+        // RGB → YUV đúng ma trận BT.709, dải TV (tránh video nhạt/lệch màu)
+        .args(["-vf", "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p"])
+        .args(["-c:v", enc.ffmpeg_name(), "-b:v", &bitrate.to_string()]);
     if enc == Encoder::Nvenc {
         cmd.args(["-preset", "p5"]);
     }

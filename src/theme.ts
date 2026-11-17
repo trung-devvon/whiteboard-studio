@@ -17,4 +17,14 @@ export const clayAlpha = (a: number) => `rgba(142, 74, 47, ${a})`;
 export const CONTENT = {
   ink: "#1D1D1F", // palette-ignore
   background: "#FFFFFF", // palette-ignore
+  /** Màu gợi ý khi đổi màu icon / ảnh nét: mực, đỏ, cam, vàng đậm, xanh lá, xanh dương, tím. */
+  swatches: [
+    "#1D1D1F", // palette-ignore
+    "#D63A2F", // palette-ignore
+    "#E8833A", // palette-ignore
+    "#C99A06", // palette-ignore
+    "#2E8B57", // palette-ignore
+    "#2F6FED", // palette-ignore
+    "#7B4FD6", // palette-ignore
+  ],
 } as const;

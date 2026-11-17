@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ask, open, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useStore } from "zustand";
-import { api, errorText, type ElementInfo, type HandEntry } from "./api";
+import { api, errorText, type ElementInfo, type HandEntry, type NarrationInfo } from "./api";
 import { Preview } from "./player";
 import { forgetProject, recentProjects, rememberProject } from "./recent";
 import { clearHistory, redo, undo, useEditor } from "./store";
@@ -15,6 +15,8 @@ import Timebar from "./components/Timebar";
 import ExportDialog from "./components/ExportDialog";
 import HandEditor from "./components/HandEditor";
 import IconPicker from "./components/IconPicker";
+import VoiceDialog from "./components/VoiceDialog";
+import { NarrationAudio } from "./audio";
 import { CONTENT } from "./theme";
 import "./App.css";
 
@@ -146,6 +148,13 @@ function Editor() {
   /** Tăng khi bộ tay đổi trên đĩa → biên dịch lại xem trước dù dự án không đổi. */
   const [handVersion, setHandVersion] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
+  // giọng đọc
+  const [narration, setNarration] = useState<NarrationInfo[]>([]);
+  const [audio, setAudio] = useState<NarrationAudio | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [voiceDialog, setVoiceDialog] = useState(false);
+  /** Tăng sau khi tạo giọng → biên dịch lại để nạp giọng mới. */
+  const [voiceVersion, setVoiceVersion] = useState(0);
 
   // thời gian: khi đang sửa, ghim ở cuối cảnh đang chọn (thấy đủ mọi element để sắp xếp)
   const [time, setTime] = useState(0);
@@ -165,11 +174,14 @@ function Editor() {
     const timer = setTimeout(async () => {
       setBusy(true);
       try {
-        const { header, bundle } = await api.compilePreview(root, project, PREVIEW_W);
+        const { header, bundle, audio } = await api.compilePreview(root, project, PREVIEW_W);
         const p = await Preview.load(bundle, PREVIEW_W);
+        const a = audio ? await NarrationAudio.load(audio).catch(() => null) : null;
         if (id !== req.current) return p.free();
         setPreview(p);
+        setAudio(a);
         setInfo(header.elements);
+        setNarration(header.narration);
         setError(null);
       } catch (e) {
         if (id === req.current) setError(errorText(e));
@@ -178,7 +190,7 @@ function Editor() {
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [root, project, handVersion]);
+  }, [root, project, handVersion, voiceVersion]);
 
   // Player cũ được giải phóng khi có Player mới (bộ nhớ WASM không tự thu gom)
   useEffect(() => () => preview?.free(), [preview]);
@@ -191,6 +203,7 @@ function Editor() {
     let t = pinEnd ? (preview.sceneStarts[sceneIndex] ?? 0) : time;
     if (t >= preview.duration - 1) t = 0;
     setPinEnd(false);
+    audio?.play(t);
     const tick = (now: number) => {
       t += now - last;
       last = now;
@@ -203,7 +216,10 @@ function Editor() {
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      audio?.stop();
+    };
     // chỉ chạy lại khi bật/tắt phát hoặc Player mới
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, preview]);
@@ -275,6 +291,25 @@ function Editor() {
       void un.then((f) => f());
     };
   }, [save]);
+
+  // tạo giọng cho các scene còn thiếu; chưa có key → mở cài đặt
+  async function generateVoice() {
+    const status = await api.voiceStatus().catch(() => null);
+    if (!status?.configured) return setVoiceDialog(true);
+    setGenerating(true);
+    setError(null);
+    try {
+      const sum = await api.narrate(root, project, (e) => setMessage(`Đang tạo giọng ${e.done}/${e.total}…`));
+      setMessage(sum.created ? `Đã tạo giọng ${sum.created} cảnh (${sum.chars} ký tự)` : "Giọng đã có sẵn");
+      setVoiceVersion((v) => v + 1);
+    } catch (e) {
+      setMessage(null);
+      setError(`Tạo giọng thất bại: ${errorText(e)}`);
+    } finally {
+      setGenerating(false);
+      setTimeout(() => setMessage(null), 2500);
+    }
+  }
 
   async function addImage() {
     const file = await open({
@@ -374,7 +409,13 @@ function Editor() {
         <Stage preview={preview} time={shownTime} playing={playing} busy={busy} error={error} />
         <Timebar preview={preview} time={shownTime} playing={playing} onPlay={() => setPlaying((p) => !p)} onSeek={seek} />
       </main>
-      <Inspector info={info} hands={hands} onManageHands={() => setHandEditor(true)} />
+      <Inspector
+        info={info}
+        hands={hands}
+        onManageHands={() => setHandEditor(true)}
+        voice={{ narration, generating, onGenerate: () => void generateVoice(), onSettings: () => setVoiceDialog(true) }}
+      />
+      {voiceDialog && <VoiceDialog voice={project.settings?.voice ?? { name: "vi-VN-HoaiMyNeural", rate: 1 }} onClose={() => setVoiceDialog(false)} />}
 
       {exporting && <ExportDialog root={root} project={project} onClose={() => setExporting(false)} />}
       {iconPicker && (

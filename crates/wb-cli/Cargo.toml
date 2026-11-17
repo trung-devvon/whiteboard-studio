@@ -20,6 +20,7 @@ wb-planner.workspace = true
 wb-timing.workspace = true
 wb-engine.workspace = true
 wb-export.workspace = true
+wb-audio.workspace = true
 image.workspace = true
 resvg.workspace = true
 tiny-skia.workspace = true

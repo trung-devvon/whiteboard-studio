@@ -43,12 +43,21 @@ pub struct ElementInput<'a> {
     pub plan: &'a DrawPlan,
     pub scale: f32,
     pub timing: Timing,
+    /// Mốc lời thoại: nét đầu bắt đầu đúng `anchor_ms` sau đầu scene (dấu `[n]` trong lời thoại).
+    pub anchor_ms: Option<f64>,
 }
 
 pub struct SceneInput<'a> {
     pub elements: Vec<ElementInput<'a>>,
     pub tail_ms: u32,
+    /// Scene kéo dài ít nhất chừng này (độ dài giọng đọc, ms). 0 = không có lời thoại.
+    pub min_ms: f64,
 }
+
+/// Khoảng lặng sau khi đọc xong lời thoại trước khi sang scene kế (ms).
+pub const NARRATION_TAIL_MS: f64 = 400.0;
+/// Element bị rút ngắn để kịp mốc lời thoại kế tiếp thì vẫn vẽ ít nhất chừng này (ms).
+pub const MIN_SQUEEZED_MS: f64 = 400.0;
 
 /// Khoảng thời gian vẽ một nét (ms tuyệt đối).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -91,51 +100,33 @@ pub fn resolve(scenes: &[SceneInput], p: &TimingParams) -> Timeline {
     let mut out = Vec::with_capacity(scenes.len());
     for sc in scenes {
         let start = t;
+        // thời lượng thô từng nét / nhấc bút và thời lượng "tự nhiên" của từng element
+        let raws: Vec<RawElement> = sc.elements.iter().map(|el| RawElement::new(el, p)).collect();
         let mut els = Vec::with_capacity(sc.elements.len());
-        for el in &sc.elements {
-            let enter = t;
-            let draw_start = t + el.timing.gap_before_ms as f64;
-            // thời lượng thô từng nét và từng lần nhấc bút
-            let strokes = &el.plan.strokes;
-            let draw: Vec<f64> = strokes
-                .iter()
-                .map(|s| {
-                    let speed = if s.kind == StrokeKind::Fill {
-                        p.fill_speed
-                    } else {
-                        p.draw_speed
-                    };
-                    (s.length * el.scale / speed) as f64 * 1000.0
-                })
-                .collect();
-            let lift: Vec<f64> = (0..strokes.len())
-                .map(|i| {
-                    if i == 0 {
-                        return 0.0;
-                    }
-                    let (a, b) = (strokes[i - 1].points.last(), strokes[i].points.first());
-                    let d = match (a, b) {
-                        (Some(a), Some(b)) => a.dist(b) * el.scale,
-                        _ => 0.0,
-                    };
-                    (p.lift_min_ms + (d / p.travel_speed) as f64 * 1000.0).min(p.lift_max_ms)
-                })
-                .collect();
-            let raw: f64 = draw.iter().sum::<f64>() + lift.iter().sum::<f64>();
-            let target = match el.timing.duration_ms {
-                Some(ms) => ms as f64,
-                None => raw.clamp(p.min_element_ms, p.max_element_ms),
+        for (i, el) in sc.elements.iter().enumerate() {
+            let gap = el.timing.gap_before_ms as f64;
+            // có mốc lời thoại muộn hơn → chờ tới mốc (tay vẫn đi vào trước nét đầu một khoảng `gap`)
+            let draw_start = match el.anchor_ms {
+                Some(a) => (t + gap).max(start + a),
+                None => t + gap,
             };
-            let k = if raw > 0.0 { target / raw } else { 1.0 };
-            let mut slots = Vec::with_capacity(strokes.len());
+            let enter = draw_start - gap;
+            let r = &raws[i];
+            let target = if el.timing.duration_ms.is_none() {
+                squeezed(sc, &raws, i, start, draw_start)
+            } else {
+                r.natural
+            };
+            let k = if r.total > 0.0 { target / r.total } else { 1.0 };
+            let mut slots = Vec::with_capacity(r.draw.len());
             let mut c = draw_start;
-            for i in 0..strokes.len() {
-                c += lift[i] * k;
+            for (lift, draw) in r.lift.iter().zip(&r.draw) {
+                c += lift * k;
                 let t0 = c;
-                c += draw[i] * k;
+                c += draw * k;
                 slots.push(StrokeSlot { t0, t1: c });
             }
-            let draw_end = if strokes.is_empty() { draw_start } else { c };
+            let draw_end = if r.draw.is_empty() { draw_start } else { c };
             let end = draw_end + el.timing.settle_ms as f64;
             els.push(ElementTimeline {
                 enter_ms: enter,
@@ -147,6 +138,9 @@ pub fn resolve(scenes: &[SceneInput], p: &TimingParams) -> Timeline {
             t = end;
         }
         t += sc.tail_ms as f64;
+        if sc.min_ms > 0.0 {
+            t = t.max(start + sc.min_ms + NARRATION_TAIL_MS);
+        }
         out.push(SceneTimeline {
             start_ms: start,
             end_ms: t,
@@ -156,6 +150,110 @@ pub fn resolve(scenes: &[SceneInput], p: &TimingParams) -> Timeline {
     Timeline {
         scenes: out,
         total_ms: t,
+    }
+}
+
+/// Thời lượng thô của một element (trước khi co giãn).
+struct RawElement {
+    draw: Vec<f64>,
+    lift: Vec<f64>,
+    /// Tổng nét + nhấc bút.
+    total: f64,
+    /// Thời lượng định vẽ: ép bằng `duration_ms`, hoặc `total` kẹp trong [min, max].
+    natural: f64,
+}
+
+impl RawElement {
+    fn new(el: &ElementInput, p: &TimingParams) -> Self {
+        let strokes = &el.plan.strokes;
+        let draw: Vec<f64> = strokes
+            .iter()
+            .map(|s| {
+                let speed = if s.kind == StrokeKind::Fill {
+                    p.fill_speed
+                } else {
+                    p.draw_speed
+                };
+                (s.length * el.scale / speed) as f64 * 1000.0
+            })
+            .collect();
+        let lift: Vec<f64> = (0..strokes.len())
+            .map(|i| {
+                if i == 0 {
+                    return 0.0;
+                }
+                let (a, b) = (strokes[i - 1].points.last(), strokes[i].points.first());
+                let d = match (a, b) {
+                    (Some(a), Some(b)) => a.dist(b) * el.scale,
+                    _ => 0.0,
+                };
+                (p.lift_min_ms + (d / p.travel_speed) as f64 * 1000.0).min(p.lift_max_ms)
+            })
+            .collect();
+        let total = draw.iter().sum::<f64>() + lift.iter().sum::<f64>();
+        let natural = match el.timing.duration_ms {
+            Some(ms) => ms as f64,
+            None => total.clamp(p.min_element_ms, p.max_element_ms),
+        };
+        Self {
+            draw,
+            lift,
+            total,
+            natural,
+        }
+    }
+}
+
+/// Thời lượng vẽ element `i` (tự tính) sao cho mọi element từ `i` tới trước mốc lời thoại kế tiếp
+/// vẽ kịp: chỗ trống chia theo tỉ lệ thời lượng tự nhiên; element nào xuống dưới [`MIN_SQUEEZED_MS`]
+/// thì giữ ở mức đó và phần còn lại chia cho các element khác (element ép `duration_ms` giữ nguyên).
+/// Không có mốc phía sau, hoặc đủ chỗ → thời lượng tự nhiên.
+fn squeezed(sc: &SceneInput, raws: &[RawElement], i: usize, scene_start: f64, draw_start: f64) -> f64 {
+    let natural = raws[i].natural;
+    let Some(j) = (i + 1..sc.elements.len()).find(|&j| sc.elements[j].anchor_ms.is_some()) else {
+        return natural;
+    };
+    let deadline = scene_start + sc.elements[j].anchor_ms.unwrap_or_default();
+    // từ nét đầu của i tới nét đầu của j: hoàn thiện + khoảng nghỉ (cố định) và thời gian vẽ
+    let mut room = deadline - draw_start - sc.elements[j].timing.gap_before_ms as f64;
+    let mut flex: Vec<f64> = Vec::new(); // thời lượng tự nhiên của các element co giãn được, [0] = i
+    for k in i..j {
+        let el = &sc.elements[k];
+        room -= el.timing.settle_ms as f64;
+        if k > i {
+            room -= el.timing.gap_before_ms as f64;
+        }
+        match el.timing.duration_ms {
+            Some(_) => room -= raws[k].natural,
+            None => flex.push(raws[k].natural),
+        }
+    }
+    let total: f64 = flex.iter().sum();
+    if total <= room || total <= 0.0 {
+        return natural;
+    }
+    // chia theo tỉ lệ; ai dưới mức tối thiểu → giữ mức tối thiểu, chia lại phần còn lại
+    let floor = |n: f64| MIN_SQUEEZED_MS.min(n);
+    let mut pinned = vec![false; flex.len()];
+    loop {
+        let fixed: f64 = flex
+            .iter()
+            .zip(&pinned)
+            .filter(|(_, p)| **p)
+            .map(|(n, _)| floor(*n))
+            .sum();
+        let free: f64 = flex.iter().zip(&pinned).filter(|(_, p)| !**p).map(|(n, _)| *n).sum();
+        let f = ((room - fixed) / free.max(1e-9)).clamp(0.0, 1.0);
+        let mut changed = false;
+        for (n, p) in flex.iter().zip(pinned.iter_mut()) {
+            if !*p && n * f < floor(*n) {
+                *p = true;
+                changed = true;
+            }
+        }
+        if !changed {
+            return if pinned[0] { floor(natural) } else { natural * f };
+        }
     }
 }
 
@@ -259,8 +357,10 @@ mod tests {
                     plan: &pl,
                     scale: 1.0,
                     timing: Timing::default(),
+                    anchor_ms: None,
                 }],
                 tail_ms: 1000,
+                min_ms: 0.0,
             }],
             &p,
         );
@@ -284,8 +384,10 @@ mod tests {
                     plan: &pl,
                     scale: 1.0,
                     timing,
+                    anchor_ms: None,
                 }],
                 tail_ms: 0,
+                min_ms: 0.0,
             }],
             &TimingParams::default(),
         );
@@ -302,8 +404,10 @@ mod tests {
                     plan: &pl,
                     scale: 1.0,
                     timing: Timing::default(),
+                    anchor_ms: None,
                 }],
                 tail_ms: 0,
+                min_ms: 0.0,
             }],
             &TimingParams {
                 min_element_ms: 0.0,
@@ -336,5 +440,60 @@ mod tests {
         assert_eq!(minimum_jerk(1.0), 1.0);
         assert!((minimum_jerk(0.5) - 0.5).abs() < 1e-12);
         assert!((minimum_jerk(0.2) + minimum_jerk(0.8) - 1.0).abs() < 1e-12);
+    }
+
+    /// Lời thoại: element 2 bắt đầu đúng mốc `[2]`, element 1 vẽ nhanh hơn cho kịp, scene dài ít nhất bằng giọng đọc.
+    #[test]
+    fn narration_anchors_start_elements_on_their_words() {
+        let pl = plan();
+        let el = |anchor_ms| ElementInput {
+            plan: &pl,
+            scale: 1.0,
+            timing: Timing::default(),
+            anchor_ms,
+        };
+        let p = TimingParams::default();
+        // không có mốc: element 1 cần ~1300 ms (min 1200) + 300 hoàn thiện
+        let free = resolve(
+            &[SceneInput {
+                elements: vec![el(None), el(None)],
+                tail_ms: 0,
+                min_ms: 0.0,
+            }],
+            &p,
+        );
+        assert!(free.scenes[0].elements[1].draw_start_ms > 1800.0);
+
+        // mốc [1] lúc 1000 ms, [2] lúc 2000 ms, giọng đọc dài 6000 ms
+        let tl = resolve(
+            &[SceneInput {
+                elements: vec![el(Some(1000.0)), el(Some(2000.0))],
+                tail_ms: 0,
+                min_ms: 6000.0,
+            }],
+            &p,
+        );
+        let e = &tl.scenes[0].elements;
+        assert_eq!(e[0].draw_start_ms, 1000.0);
+        assert_eq!(e[0].enter_ms, 700.0); // tay vào trước nét đầu 300 ms
+        assert!((e[1].draw_start_ms - 2000.0).abs() < 1e-6);
+        assert!(
+            e[0].end_ms <= e[1].enter_ms + 1e-6,
+            "element 1 phải xong trước khi element 2 vào"
+        );
+        assert!(e[0].draw_end_ms - e[0].draw_start_ms >= MIN_SQUEEZED_MS - 1e-6);
+        assert_eq!(tl.total_ms, 6000.0 + NARRATION_TAIL_MS);
+
+        // mốc quá sớm (trước khi element trước kịp xong) → không giật lùi, vẽ nối tiếp
+        let tl = resolve(
+            &[SceneInput {
+                elements: vec![el(None), el(Some(10.0))],
+                tail_ms: 0,
+                min_ms: 0.0,
+            }],
+            &p,
+        );
+        let e = &tl.scenes[0].elements;
+        assert!(e[1].draw_start_ms >= e[0].end_ms);
     }
 }

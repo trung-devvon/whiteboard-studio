@@ -9,7 +9,7 @@ use crate::{ElementAsset, Engine, HandSprite, Place, SceneAsset};
 use serde::{Deserialize, Serialize};
 use tiny_skia::{IntSize, Pixmap};
 use wb_model::{DrawPlan, Timing};
-use wb_timing::{ElementInput, SceneInput, TimingParams};
+use wb_timing::{ElementInput, SceneInput, Timeline, TimingParams};
 
 /// Ảnh RGBA **premultiplied** (đúng bố cục của `tiny_skia::Pixmap`).
 #[derive(Clone, Serialize, Deserialize)]
@@ -40,6 +40,8 @@ pub struct BundleElement {
     pub place: [f32; 3],
     pub plan: DrawPlan,
     pub timing: Timing,
+    /// Mốc lời thoại (ms từ đầu scene) — chỉ lớp đầu của element có dấu `[n]`.
+    pub anchor_ms: Option<f32>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -47,6 +49,8 @@ pub struct BundleScene {
     pub background: [u8; 4],
     pub tail_ms: u32,
     pub elements: Vec<BundleElement>,
+    /// Độ dài giọng đọc của scene (ms), 0 = không có lời thoại.
+    pub narration_ms: f32,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -168,13 +172,40 @@ impl Bundle {
         }
     }
 
+    /// Chỉ giải Timeline (không dựng ảnh) — vd. để đặt giọng đọc đúng đầu mỗi scene.
+    pub fn timeline(&self) -> Timeline {
+        let inputs: Vec<SceneInput> = self
+            .scenes
+            .iter()
+            .map(|sc| SceneInput {
+                elements: sc
+                    .elements
+                    .iter()
+                    .map(|el| ElementInput {
+                        plan: &el.plan,
+                        scale: el.place[0],
+                        timing: el.timing,
+                        anchor_ms: el.anchor_ms.map(f64::from),
+                    })
+                    .collect(),
+                tail_ms: sc.tail_ms,
+                min_ms: sc.narration_ms as f64,
+            })
+            .collect();
+        wb_timing::resolve(&inputs, &self.timing_params())
+    }
+
+    fn timing_params(&self) -> TimingParams {
+        TimingParams {
+            draw_speed: self.draw_speed,
+            ..TimingParams::default()
+        }
+    }
+
     /// Giải Timeline và dựng Engine ở chiều rộng `out_width` (mặc định: cỡ dự án).
     pub fn into_engine(self, out_width: Option<u32>) -> Result<Engine, BundleError> {
         let (out_w, out_h) = self.output_size(out_width);
-        let params = TimingParams {
-            draw_speed: self.draw_speed,
-            ..TimingParams::default()
-        };
+        let params = self.timing_params();
         let mut scenes = Vec::with_capacity(self.scenes.len());
         let mut timings = Vec::with_capacity(self.scenes.len());
         for sc in self.scenes {
@@ -187,29 +218,31 @@ impl Bundle {
                     place: Place { scale, ox, oy },
                     plan: el.plan,
                 });
-                t.push(el.timing);
+                t.push((el.timing, el.anchor_ms));
             }
             scenes.push(SceneAsset {
                 background: sc.background,
                 elements,
             });
-            timings.push((t, sc.tail_ms));
+            timings.push((t, sc.tail_ms, sc.narration_ms));
         }
         let inputs: Vec<SceneInput> = scenes
             .iter()
             .zip(&timings)
-            .map(|(sc, (t, tail_ms))| SceneInput {
+            .map(|(sc, (t, tail_ms, narration_ms))| SceneInput {
                 elements: sc
                     .elements
                     .iter()
                     .zip(t)
-                    .map(|(a, timing)| ElementInput {
+                    .map(|(a, (timing, anchor))| ElementInput {
                         plan: &a.plan,
                         scale: a.place.scale,
                         timing: *timing,
+                        anchor_ms: anchor.map(f64::from),
                     })
                     .collect(),
                 tail_ms: *tail_ms,
+                min_ms: *narration_ms as f64,
             })
             .collect();
         let timeline = wb_timing::resolve(&inputs, &params);

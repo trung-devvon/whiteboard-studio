@@ -8,6 +8,7 @@ pub mod cache;
 pub mod debug;
 pub mod hands;
 pub mod icons;
+pub mod narrate;
 pub mod text;
 pub mod vector;
 
@@ -44,6 +45,9 @@ pub struct Compiled {
     pub engine: Engine,
     pub project: Project,
     pub report: Vec<ElementReport>,
+    /// Rãnh giọng đọc cả video (mono, `wb_audio::SAMPLE_RATE`), nếu có scene đã tạo giọng.
+    pub audio: Option<Vec<i16>>,
+    pub narration: Vec<SceneNarration>,
 }
 
 /// Nơi tìm file của dự án.
@@ -104,6 +108,81 @@ pub struct Prepared {
     pub report: Vec<ElementReport>,
     /// Với mỗi scene, chỉ số báo cáo của từng asset (một element nhiều lớp → nhiều asset).
     pub owners: Vec<Vec<usize>>,
+    /// Giọng đọc của từng scene (theo thứ tự scene).
+    pub narration: Vec<SceneNarration>,
+}
+
+/// Trạng thái giọng đọc của một scene.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NarrationState {
+    /// Scene không có lời thoại.
+    None,
+    /// Đã có giọng đọc khớp lời thoại hiện tại.
+    Ready,
+    /// Có lời thoại nhưng chưa tạo giọng (hoặc lời/giọng đã đổi) → bấm "Tạo giọng đọc".
+    Missing,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SceneNarration {
+    pub scene: String,
+    pub state: NarrationState,
+    /// Khoá đệm `generated/tts/<key>` (rỗng nếu không có lời thoại).
+    pub key: String,
+    pub duration_ms: f64,
+    /// Số `n` của các dấu `[n]` không trỏ tới element nào trong scene.
+    pub unknown_markers: Vec<usize>,
+    #[serde(skip)]
+    pub speech: Option<Arc<wb_audio::Speech>>,
+}
+
+impl SceneNarration {
+    /// Lời thoại của scene → khoá đệm + giọng đã tạo (nếu có trong `generated/tts/`).
+    pub fn load(ctx: &CompileContext, sc: &wb_model::Scene, voice: &wb_model::VoiceSettings) -> Self {
+        let text = sc.narration.as_deref().unwrap_or("");
+        if wb_audio::narration::spoken(text).trim().is_empty() {
+            return Self {
+                scene: sc.id.clone(),
+                state: NarrationState::None,
+                key: String::new(),
+                duration_ms: 0.0,
+                unknown_markers: vec![],
+                speech: None,
+            };
+        }
+        let key = wb_audio::narration::cache_key(text, &voice.name, voice.rate);
+        let unknown_markers = wb_audio::narration::parse(text)
+            .into_iter()
+            .filter_map(|p| match p {
+                wb_audio::narration::Piece::Marker(n) if n > sc.elements.len() => Some(n),
+                _ => None,
+            })
+            .collect();
+        let speech = wb_audio::store::load(&ctx.base_dir, &key).ok().map(Arc::new);
+        Self {
+            scene: sc.id.clone(),
+            state: if speech.is_some() {
+                NarrationState::Ready
+            } else {
+                NarrationState::Missing
+            },
+            duration_ms: speech.as_ref().map_or(0.0, |s| s.duration_ms),
+            key,
+            unknown_markers,
+            speech,
+        }
+    }
+}
+
+/// Rãnh tiếng cả video: giọng mỗi scene đặt đúng đầu scene đó. `None` nếu không scene nào có giọng.
+pub fn narration_track(narration: &[SceneNarration], timeline: &Timeline) -> Option<Vec<i16>> {
+    let clips: Vec<(f64, &[i16])> = narration
+        .iter()
+        .zip(&timeline.scenes)
+        .filter_map(|(n, sc)| n.speech.as_ref().map(|s| (sc.start_ms, s.pcm.as_slice())))
+        .collect();
+    (!clips.is_empty()).then(|| wb_audio::mix::mix(timeline.total_ms, wb_audio::SAMPLE_RATE, &clips))
 }
 
 impl Prepared {
@@ -113,6 +192,7 @@ impl Prepared {
             bundle,
             mut report,
             owners,
+            ..
         } = self;
         let engine = bundle.into_engine(out_width)?;
         fill_draw_times(&mut report, &owners, engine.timeline());
@@ -152,6 +232,26 @@ pub fn font_path(ctx: &CompileContext, font: Option<&str>) -> Result<PathBuf> {
     }
 }
 
+/// Màu đổi (`tint`) của element ảnh, nếu có.
+fn tint_of(el: &wb_model::Element) -> Result<Option<[u8; 4]>> {
+    match &el.kind {
+        ElementKind::Image { tint: Some(t), .. } => parse_hex_color(t)
+            .map(Some)
+            .with_context(|| format!("màu đổi không hợp lệ: {t}")),
+        _ => Ok(None),
+    }
+}
+
+/// Đổi mọi điểm có mực sang một màu, giữ độ trong (RGBA thẳng, không nhân trước).
+/// Chạy lúc lắp gói, sau đệm phân tích → đổi màu không phải phân tích lại ảnh.
+pub fn tinted(rgba: &[u8], color: [u8; 4]) -> Vec<u8> {
+    let mut out = rgba.to_vec();
+    for px in out.chunks_exact_mut(4) {
+        px[..3].copy_from_slice(&color[..3]);
+    }
+    out
+}
+
 /// Phân tích một element (ảnh hoặc chữ).
 pub fn analyze_element(ctx: &CompileContext, el: &wb_model::Element) -> Result<AnalyzedImage> {
     match &el.kind {
@@ -161,6 +261,7 @@ pub fn analyze_element(ctx: &CompileContext, el: &wb_model::Element) -> Result<A
             style,
             background,
             params,
+            ..
         } => {
             let opt = ImageOptions {
                 pipeline: *pipeline,
@@ -229,11 +330,16 @@ pub fn check_schema(project: &Project) -> Result<()> {
 pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> {
     let project = read_project(project_path)?;
     let ctx = CompileContext::new(project_path.parent().unwrap_or(Path::new(".")));
-    let (engine, report) = prepare(&project, &ctx, None)?.into_engine(out_width)?;
+    let prepared = prepare(&project, &ctx, None)?;
+    let narration = prepared.narration.clone();
+    let (engine, report) = prepared.into_engine(out_width)?;
+    let audio = narration_track(&narration, engine.timeline());
     Ok(Compiled {
         engine,
         project,
         report,
+        audio,
+        narration,
     })
 }
 
@@ -282,13 +388,17 @@ pub fn prepare(project: &Project, ctx: &CompileContext, cache: Option<&AnalysisC
     let mut scenes = Vec::new();
     let mut report = Vec::new();
     let mut owners = Vec::new();
+    let mut narration = Vec::new();
     for (si, sc) in project.scenes.iter().enumerate() {
         let bg =
             parse_hex_color(sc.background.as_deref().unwrap_or(&set.background)).context("màu nền không hợp lệ")?;
         let mut elements = Vec::new();
         let mut scene_owners = Vec::new();
+        let speech = SceneNarration::load(ctx, sc, &set.voice);
         for (ei, el) in sc.elements.iter().enumerate() {
+            let anchor = speech.speech.as_ref().and_then(|s| s.anchor_of(ei + 1));
             let a = per_scene[si][ei].take().unwrap();
+            let tint = tint_of(el)?;
             let (sw, sh) = a.source;
             // (px lớp đầu → px tham chiếu, góc trên-trái)
             let (scale, ox, oy) = match a.placement {
@@ -316,13 +426,18 @@ pub fn prepare(project: &Project, ctx: &CompileContext, cache: Option<&AnalysisC
             let n = a.layers.len();
             for (li, layer) in a.layers.iter().enumerate() {
                 let (lw, lh) = layer.ink.dimensions();
-                let ink = pixmap_from_rgba(lw, lh, layer.ink.as_raw()).context("ảnh rỗng")?;
+                let ink = match tint {
+                    Some(c) => pixmap_from_rgba(lw, lh, &tinted(layer.ink.as_raw(), c)),
+                    None => pixmap_from_rgba(lw, lh, layer.ink.as_raw()),
+                }
+                .context("ảnh rỗng")?;
                 elements.push(BundleElement {
                     ink: RawImage::from_pixmap(&ink),
                     // lớp có thể ở độ phân giải khác ảnh nguồn → co giãn cho cùng khung
                     place: [scale * sw as f32 / lw as f32, ox, oy],
                     plan: layer.plan.clone(),
                     timing: layer_timing(el.timing, li, n),
+                    anchor_ms: if li == 0 { anchor.map(|a| a as f32) } else { None },
                 });
                 scene_owners.push(report.len() - 1);
             }
@@ -331,8 +446,10 @@ pub fn prepare(project: &Project, ctx: &CompileContext, cache: Option<&AnalysisC
             background: bg,
             tail_ms: sc.tail_ms,
             elements,
+            narration_ms: speech.duration_ms as f32,
         });
         owners.push(scene_owners);
+        narration.push(speech);
     }
     let hand = match &set.hand {
         Some(rel) => Some(BundleHand::from_sprite(&load_hand(
@@ -353,6 +470,7 @@ pub fn prepare(project: &Project, ctx: &CompileContext, cache: Option<&AnalysisC
         },
         report,
         owners,
+        narration,
     })
 }
 

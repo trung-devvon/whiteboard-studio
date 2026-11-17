@@ -28,7 +28,20 @@ export type ElementInfo = {
   coverage: number;
   analyze_ms: number;
 };
-export type PreviewHeader = { elements: ElementInfo[]; compile_ms: number };
+/** Giọng đọc của một scene: none = không có lời thoại; missing = có lời nhưng chưa tạo giọng (hoặc lời đã đổi). */
+export type NarrationInfo = {
+  scene: string;
+  state: "none" | "ready" | "missing";
+  key: string;
+  duration_ms: number;
+  /** Dấu `[n]` không trỏ tới element nào. */
+  unknown_markers: number[];
+};
+export type PreviewHeader = { elements: ElementInfo[]; compile_ms: number; narration: NarrationInfo[]; has_audio: boolean };
+/** Key Azure đã cài chưa (app không bao giờ nhận lại key). */
+export type VoiceStatus = { configured: boolean; source: "keyring" | "env" | null; region: string | null };
+export type NarrateEvent = { type: "progress"; done: number; total: number };
+export type NarrateSummary = { scenes: number; created: number; chars: number };
 
 export type ExportEvent =
   | { type: "preparing" }
@@ -56,13 +69,29 @@ export const api = {
     return URL.createObjectURL(new Blob([buf], { type: "image/png" }));
   },
 
-  /** Biên dịch cho Player: trả báo cáo + gói nhị phân (Bundle, postcard). */
+  /** Biên dịch cho Player: báo cáo + gói nhị phân (Bundle, postcard) + rãnh giọng đọc (WAV) nếu có. */
   async compilePreview(root: string, project: Project, width: number) {
     const buf = await invoke<ArrayBuffer>("compile_preview", { root, project, width });
     const view = new DataView(buf);
     const n = view.getUint32(0, true);
     const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, n))) as PreviewHeader;
-    return { header, bundle: new Uint8Array(buf, 4 + n) };
+    const b = view.getUint32(4 + n, true);
+    const bundle = new Uint8Array(buf, 8 + n, b);
+    const audio = header.has_audio ? new Uint8Array(buf, 8 + n + b) : null;
+    return { header, bundle, audio };
+  },
+
+  voiceStatus: () => invoke<VoiceStatus>("voice_status"),
+  /** Thử key (đọc "Xin chào.") rồi cất vào kho mật khẩu Windows. */
+  voiceSave: (key: string, region: string) => invoke<VoiceStatus>("voice_save", { key, region }),
+  voiceClear: () => invoke<VoiceStatus>("voice_clear"),
+  /** Đọc thử một câu → WAV. */
+  voicePreview: (voice: string, rate: number, text: string) => invoke<ArrayBuffer>("voice_preview", { voice, rate, text }),
+  /** Tạo giọng cho các scene còn thiếu. */
+  narrate(root: string, project: Project, onEvent: (e: NarrateEvent) => void) {
+    const ch = new Channel<NarrateEvent>();
+    ch.onmessage = onEvent;
+    return invoke<NarrateSummary>("narration_generate", { root, project, onEvent: ch });
   },
 
   exportVideo(root: string, project: Project, out: string, width: number | null, onEvent: (e: ExportEvent) => void) {

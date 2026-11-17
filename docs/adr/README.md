@@ -17,7 +17,7 @@ Mẫu: [`0000-mau.md`](0000-mau.md).
 | 0009 | Đồng bộ bằng marker trong lời thoại | Đề xuất |
 | 0010 | Mặc định 30fps | ✅ Chấp nhận (= 0016) |
 | 0011 | Model ONNX tải khi cần | Đề xuất |
-| 0012 | **Nguồn giọng đọc** — Edge-TTS bị loại | ⏳ **Cần quyết định** — [0012](0012-nguon-giong-doc.md) |
+| 0012 | **Nguồn giọng đọc** — Azure AI Speech (F0), giọng HoaiMy; Edge-TTS bị loại | ✅ Chấp nhận — [0012](0012-nguon-giong-doc.md) |
 | 0013 | Chữ = **xương glyph + reveal**, chỉ font OFL có tiếng Việt | ✅ Chấp nhận — [0013](0013-chu-xuong-glyph.md) |
 | 0014 | Trộn âm thanh trong Rust | Đề xuất |
 | 0015 | Chính sách giấy phép "Giữ cửa mở" | ✅ Chấp nhận (`deny.toml`) |

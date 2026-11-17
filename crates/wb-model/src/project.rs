@@ -35,6 +35,31 @@ pub struct ProjectSettings {
     pub hand_mode: HandMode,
     /// Hệ số cỡ tay người dùng chỉnh thêm (1 = cỡ mặc định của bộ tay).
     pub hand_scale: f32,
+    /// Giọng đọc lời thoại (Giai đoạn 4).
+    pub voice: VoiceSettings,
+}
+
+/// Giọng đọc lời thoại.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(default)]
+pub struct VoiceSettings {
+    /// Tên giọng của dịch vụ (Azure), vd. `vi-VN-HoaiMyNeural`.
+    pub name: String,
+    /// Tốc độ đọc (1 = bình thường, 0.5–2).
+    pub rate: f32,
+}
+
+/// Giọng mặc định: HoaiMy (nữ, tiếng Việt).
+pub const DEFAULT_VOICE: &str = "vi-VN-HoaiMyNeural";
+
+impl Default for VoiceSettings {
+    fn default() -> Self {
+        Self {
+            name: DEFAULT_VOICE.into(),
+            rate: 1.0,
+        }
+    }
 }
 
 /// Kiểu hiển thị bàn tay.
@@ -63,6 +88,7 @@ impl Default for ProjectSettings {
             hand: None,
             hand_mode: HandMode::Wrist,
             hand_scale: 1.0,
+            voice: VoiceSettings::default(),
         }
     }
 }
@@ -81,6 +107,9 @@ pub struct Scene {
     /// Thời gian giữ hình sau khi vẽ xong element cuối (ms).
     #[serde(default = "default_tail_ms")]
     pub tail_ms: u32,
+    /// Lời thoại đọc trong scene. Dấu `[n]` = element thứ n (theo thứ tự vẽ) bắt đầu vẽ đúng lúc đọc tới đó.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub narration: Option<String>,
 }
 
 fn default_tail_ms() -> u32 {
@@ -116,6 +145,10 @@ pub enum ElementKind {
         background: BackgroundMode,
         #[serde(default)]
         params: VisionParams,
+        /// Đổi màu: mọi điểm có mực thành màu này (`#RRGGBB`), giữ độ trong.
+        /// Hợp cho icon / ảnh nét một màu. `None` = giữ màu gốc.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tint: Option<String>,
     },
     /// Chữ viết tay. Khung `transform`: (x, y) = góc trên-trái dòng đầu, `w` = bề rộng tối đa (xuống dòng).
     Text {

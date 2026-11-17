@@ -67,7 +67,12 @@ impl AnalysisCache {
 
 fn key_of(ctx: &CompileContext, el: &Element) -> Result<u64> {
     let mut h = DefaultHasher::new();
-    serde_json::to_string(&el.kind)?.hash(&mut h);
+    // màu đổi (`tint`) áp lúc lắp gói → không tính vào khoá, đổi màu không phân tích lại
+    let mut kind = el.kind.clone();
+    if let ElementKind::Image { tint, .. } = &mut kind {
+        *tint = None;
+    }
+    serde_json::to_string(&kind)?.hash(&mut h);
     let file = match &el.kind {
         ElementKind::Image { src, .. } => Some(ctx.resolve(src)?),
         ElementKind::Text { font, .. } => {

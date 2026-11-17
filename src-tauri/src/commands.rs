@@ -10,7 +10,7 @@ use tauri::State;
 use tauri::ipc::{Channel, Response};
 use wb_compile::hands::{self, HandEntry, HandMeta};
 use wb_compile::icons::IconIndex;
-use wb_compile::{AnalysisCache, CompileContext, prepare};
+use wb_compile::{AnalysisCache, CompileContext, SceneNarration, narration_track, prepare};
 use wb_model::Project;
 use wb_project::ProjectDir;
 
@@ -287,9 +287,14 @@ struct ElementInfo {
 struct PreviewHeader {
     elements: Vec<ElementInfo>,
     compile_ms: u128,
+    /// Trạng thái giọng đọc từng scene.
+    narration: Vec<SceneNarration>,
+    /// Gói có kèm rãnh tiếng WAV ở cuối không.
+    has_audio: bool,
 }
 
-/// Biên dịch dự án cho Player. Trả nhị phân: `[u32 LE độ dài JSON][JSON báo cáo][Bundle postcard]`.
+/// Biên dịch dự án cho Player. Trả nhị phân:
+/// `[u32 LE độ dài JSON][JSON báo cáo][u32 LE độ dài Bundle][Bundle postcard][WAV giọng đọc nếu `has_audio`]`.
 /// Phân tích ảnh chạy ở luồng nền (không chặn giao diện) và dùng đệm.
 #[tauri::command]
 pub async fn compile_preview(
@@ -303,6 +308,7 @@ pub async fn compile_preview(
     tauri::async_runtime::spawn_blocking(move || -> CmdResult<Response> {
         let t0 = Instant::now();
         let mut prepared = prepare(&project, &ctx, Some(&cache)).map_err(err_chain)?;
+        let audio = narration_track(&prepared.narration, &prepared.bundle.timeline());
         prepared.bundle.fit_for_preview(width);
         let header = PreviewHeader {
             elements: prepared
@@ -320,13 +326,20 @@ pub async fn compile_preview(
                 })
                 .collect(),
             compile_ms: t0.elapsed().as_millis(),
+            narration: prepared.narration.clone(),
+            has_audio: audio.is_some(),
         };
         let json = serde_json::to_vec(&header).map_err(err)?;
         let bundle = prepared.bundle.to_bytes();
-        let mut out = Vec::with_capacity(4 + json.len() + bundle.len());
+        let wav = audio
+            .map(|pcm| wb_audio::wav::encode(&pcm, wb_audio::SAMPLE_RATE))
+            .unwrap_or_default();
+        let mut out = Vec::with_capacity(8 + json.len() + bundle.len() + wav.len());
         out.extend_from_slice(&(json.len() as u32).to_le_bytes());
         out.extend_from_slice(&json);
+        out.extend_from_slice(&(bundle.len() as u32).to_le_bytes());
         out.extend_from_slice(&bundle);
+        out.extend_from_slice(&wav);
         Ok(Response::new(out))
     })
     .await
@@ -365,23 +378,34 @@ pub async fn export_video(
     let cache = state.cache.clone();
     let result = tauri::async_runtime::spawn_blocking(move || -> CmdResult<()> {
         let _ = on_event.send(ExportEvent::Preparing);
-        let (mut engine, _) = prepare(&project, &ctx, Some(&cache))
-            .and_then(|p| p.into_engine(width))
-            .map_err(err_chain)?;
+        let prepared = prepare(&project, &ctx, Some(&cache)).map_err(err_chain)?;
+        let narration = prepared.narration.clone();
+        let (mut engine, _) = prepared.into_engine(width).map_err(err_chain)?;
+        // giọng đọc → WAV tạm, FFmpeg trộn vào video
+        let wav = std::env::temp_dir().join(format!("wb-export-{}.wav", std::process::id()));
+        let audio = match narration_track(&narration, engine.timeline()) {
+            Some(pcm) => {
+                wb_audio::wav::write(&wav, &pcm, wb_audio::SAMPLE_RATE).map_err(err)?;
+                Some(wav.clone())
+            }
+            None => None,
+        };
         let opts = wb_export::ExportOptions {
             fps: project.settings.fps,
             cancel,
+            audio,
             ..Default::default()
         };
         let mut last = Instant::now();
-        let stats = wb_export::export_mp4(&mut engine, Path::new(&out), &opts, |frame, total| {
+        let res = wb_export::export_mp4(&mut engine, Path::new(&out), &opts, |frame, total| {
             // ~10 lần/giây là đủ cho thanh tiến độ
             if last.elapsed().as_millis() >= 100 || frame == total {
                 last = Instant::now();
                 let _ = on_event.send(ExportEvent::Progress { frame, total });
             }
-        })
-        .map_err(err)?;
+        });
+        let _ = std::fs::remove_file(&wav);
+        let stats = res.map_err(err)?;
         let _ = on_event.send(ExportEvent::Done {
             path: out,
             seconds: stats.seconds,
@@ -400,4 +424,96 @@ pub fn export_cancel(state: State<'_, AppState>) {
     if let Some(c) = state.export_cancel.lock().unwrap().as_ref() {
         c.store(true, Ordering::Relaxed);
     }
+}
+
+// ───────────────────────── Giọng đọc (Giai đoạn 4) ─────────────────────────
+
+/// Trạng thái key Azure — không bao giờ trả key về giao diện.
+#[derive(Serialize)]
+pub struct VoiceStatus {
+    configured: bool,
+    /// `keyring` (nhập trong app) hoặc `env` (file `.env` khi phát triển).
+    source: Option<wb_audio::credentials::Source>,
+    region: Option<String>,
+}
+
+#[tauri::command]
+pub fn voice_status() -> VoiceStatus {
+    match wb_audio::credentials::load() {
+        Some((cfg, source)) => VoiceStatus {
+            configured: true,
+            source: Some(source),
+            region: Some(cfg.region),
+        },
+        None => VoiceStatus {
+            configured: false,
+            source: None,
+            region: None,
+        },
+    }
+}
+
+/// Lưu key + vùng vào kho mật khẩu Windows sau khi thử đọc một câu ngắn (key sai → không lưu).
+#[tauri::command]
+pub async fn voice_save(key: String, region: String) -> CmdResult<VoiceStatus> {
+    let cfg = wb_audio::AzureConfig {
+        key: key.trim().to_string(),
+        region: region.trim().to_lowercase(),
+    };
+    if cfg.key.is_empty() || cfg.region.is_empty() {
+        return Err("cần nhập cả key và vùng (region)".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || -> CmdResult<VoiceStatus> {
+        let ssml = wb_audio::narration::ssml("Xin chào.", wb_model::DEFAULT_VOICE, 1.0);
+        wb_audio::synthesize(&cfg, &ssml).map_err(err)?;
+        wb_audio::credentials::save(&cfg).map_err(|e| format!("không lưu được vào kho mật khẩu: {e}"))?;
+        Ok(voice_status())
+    })
+    .await
+    .map_err(err)?
+}
+
+#[tauri::command]
+pub fn voice_clear() -> CmdResult<VoiceStatus> {
+    wb_audio::credentials::clear().map_err(err)?;
+    Ok(voice_status())
+}
+
+/// Đọc thử một câu bằng giọng/tốc độ đang chọn → WAV để giao diện phát.
+#[tauri::command]
+pub async fn voice_preview(voice: String, rate: f32, text: String) -> CmdResult<Response> {
+    tauri::async_runtime::spawn_blocking(move || -> CmdResult<Response> {
+        let (cfg, _) = wb_audio::credentials::load().ok_or_else(|| wb_audio::TtsError::NoKey.to_string())?;
+        let text: String = text.chars().take(200).collect();
+        let speech = wb_audio::synthesize(&cfg, &wb_audio::narration::ssml(&text, &voice, rate)).map_err(err)?;
+        Ok(Response::new(wb_audio::wav::encode(&speech.pcm, wb_audio::SAMPLE_RATE)))
+    })
+    .await
+    .map_err(err)?
+}
+
+#[derive(Clone, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NarrateEvent {
+    Progress { done: usize, total: usize },
+}
+
+/// Tạo giọng cho các scene có lời thoại mà chưa có giọng (lưu vào `generated/tts/` của dự án).
+#[tauri::command]
+pub async fn narration_generate(
+    state: State<'_, AppState>,
+    root: String,
+    project: Project,
+    on_event: Channel<NarrateEvent>,
+) -> CmdResult<wb_compile::narrate::NarrateSummary> {
+    let ctx = state.ctx(&root);
+    tauri::async_runtime::spawn_blocking(move || {
+        let (cfg, _) = wb_audio::credentials::load().ok_or_else(|| wb_audio::TtsError::NoKey.to_string())?;
+        wb_compile::narrate::generate(&project, &ctx, &cfg, |done, total| {
+            let _ = on_event.send(NarrateEvent::Progress { done, total });
+        })
+        .map_err(err_chain)
+    })
+    .await
+    .map_err(err)?
 }

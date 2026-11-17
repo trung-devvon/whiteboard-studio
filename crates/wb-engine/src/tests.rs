@@ -39,8 +39,10 @@ fn engine(with_hand: bool) -> Engine {
                 plan: &el.plan,
                 scale: el.place.scale,
                 timing: Timing::default(),
+                anchor_ms: None,
             }],
             tail_ms: 500,
+            min_ms: 0.0,
         }],
         &TimingParams {
             min_element_ms: 0.0,

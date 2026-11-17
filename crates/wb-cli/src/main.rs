@@ -5,6 +5,7 @@
 //! wb quick   <ảnh>          -o out.mp4        xuất nhanh 1 ảnh (không cần viết JSON)
 //! wb frame   <project.json> --at 2.5 -o f.png  xuất 1 khung hình tại giây 2.5
 //! wb analyze <ảnh>          -o debug.png       phân tích ảnh, xem loại ảnh + thứ tự nét
+//! wb tts     <project.json>                   tạo giọng đọc cho lời thoại (Azure, key trong .env)
 //! ```
 //!
 //! `quick` và `analyze` nhận thêm `--pipeline auto|line_art|color|photo`,
@@ -153,6 +154,9 @@ enum Cmd {
         #[arg(long)]
         no_trim: bool,
     },
+    /// Tạo giọng đọc cho các scene có lời thoại (Azure AI Speech). Key/vùng lấy từ biến môi trường
+    /// `WB_AZURE_SPEECH_KEY` / `WB_AZURE_SPEECH_REGION` hoặc file `.env`. Giọng đã tạo được dùng lại.
+    Tts { project: PathBuf },
     /// Phân tích ảnh: loại ảnh, số nét, độ phủ, ảnh debug thứ tự nét
     Analyze {
         image: PathBuf,
@@ -230,6 +234,7 @@ fn main() -> Result<()> {
             println!("Đã ghi {} ({:.1} MB)", out.display(), bytes.len() as f64 / 1e6);
             Ok(())
         }
+        Cmd::Tts { project } => tts(&project),
         Cmd::RemoveBg {
             image,
             out,
@@ -307,18 +312,34 @@ fn render(project: &Path, out: &Path, encoder: &str, width: Option<u32>, range: 
     let compile_s = t0.elapsed().as_secs_f64();
     let enc = Encoder::parse(encoder).with_context(|| format!("encoder không hợp lệ: {encoder}"))?;
     let total_ms = c.engine.duration_ms();
+    for n in &c.narration {
+        if n.state == wb_compile::NarrationState::Missing {
+            println!(
+                "  ⚠ scene {}: có lời thoại nhưng chưa tạo giọng — chạy `wb tts` trước",
+                n.scene
+            );
+        }
+    }
+    // giọng đọc → file WAV tạm cạnh video, FFmpeg trộn vào
+    let wav = out.with_extension("narration.wav");
+    if let Some(pcm) = &c.audio {
+        wb_audio::wav::write(&wav, pcm, wb_audio::SAMPLE_RATE)?;
+    }
     let opts = ExportOptions {
         fps: c.project.settings.fps,
         encoder: enc,
         range_ms: range.map(|(a, b)| (a, b.min(total_ms))),
+        audio: c.audio.is_some().then(|| wav.clone()),
         ..ExportOptions::default()
     };
-    let stats = export_mp4(&mut c.engine, out, &opts, |done, total| {
+    let res = export_mp4(&mut c.engine, out, &opts, |done, total| {
         if done % 15 == 0 || done == total {
             print!("\r  Đang xuất: {:>3}% ({done}/{total} khung)", done * 100 / total);
             let _ = std::io::stdout().flush();
         }
-    })?;
+    });
+    let _ = std::fs::remove_file(&wav);
+    let stats = res?;
     let video_s = stats.frames as f64 / opts.fps as f64;
     println!(
         "\nXong: {} · video {:.1}s · phân tích {:.1}s + xuất {:.1}s (render {:.1}s) · {:.1}× thời gian thực · encoder {}",
@@ -329,6 +350,25 @@ fn render(project: &Path, out: &Path, encoder: &str, width: Option<u32>, range: 
         stats.render_seconds,
         video_s / (compile_s + stats.seconds),
         stats.encoder.ffmpeg_name()
+    );
+    Ok(())
+}
+
+fn tts(project: &Path) -> Result<()> {
+    let doc = wb_compile::read_project(project)?;
+    let ctx = wb_compile::CompileContext::new(project.parent().unwrap_or(Path::new(".")));
+    let (cfg, _) = wb_audio::credentials::load().context(
+        "chưa có key Azure — đặt WB_AZURE_SPEECH_KEY và WB_AZURE_SPEECH_REGION (biến môi trường hoặc file .env)",
+    )?;
+    let sum = wb_compile::narrate::generate(&doc, &ctx, &cfg, |done, total| {
+        if total > 0 {
+            print!("\r  Đang tạo giọng: {done}/{total} scene");
+            let _ = std::io::stdout().flush();
+        }
+    })?;
+    println!(
+        "\nXong: {} scene có lời thoại, tạo mới {} ({} ký tự), giọng {}",
+        sum.scenes, sum.created, sum.chars, doc.settings.voice.name
     );
     Ok(())
 }

@@ -14,6 +14,7 @@ wb-text.workspace = true
 wb-planner.workspace = true
 wb-timing.workspace = true
 wb-engine.workspace = true
+wb-audio.workspace = true
 image.workspace = true
 resvg.workspace = true
 tiny-skia.workspace = true
@@ -27,3 +28,4 @@ workspace = true
 
 [dev-dependencies]
 wb-project.workspace = true
+wb-audio.workspace = true

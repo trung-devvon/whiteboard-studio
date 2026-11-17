@@ -40,6 +40,11 @@ pub fn run() {
             commands::compile_preview,
             commands::export_video,
             commands::export_cancel,
+            commands::voice_status,
+            commands::voice_save,
+            commands::voice_clear,
+            commands::voice_preview,
+            commands::narration_generate,
         ])
         .run(tauri::generate_context!())
         .expect("không khởi chạy được ứng dụng Tauri");

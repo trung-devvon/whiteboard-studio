@@ -1,6 +1,6 @@
 [package]
 name = "wb-audio"
-description = "TTS provider, alignment, cue SFX, mixer PCM."
+description = "Giọng đọc (Azure Speech) + mốc thời gian từ/dấu, bộ nhớ đệm giọng, WAV, trộn tiếng."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,6 +8,12 @@ publish.workspace = true
 authors.workspace = true
 
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tungstenite.workspace = true
+dotenvy.workspace = true
+keyring.workspace = true
 
 [lints]
 workspace = true

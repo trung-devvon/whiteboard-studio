@@ -28,6 +28,7 @@ wb-model.workspace = true
 wb-project.workspace = true
 wb-compile.workspace = true
 wb-export.workspace = true
+wb-audio.workspace = true
 
 [lints]
 workspace = true

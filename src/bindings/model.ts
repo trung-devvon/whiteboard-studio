@@ -42,7 +42,12 @@ src: string; pipeline?: PipelineChoice;
 /**  Cách bàn tay làm ảnh hiện ra (phác thảo / tô màu bằng cọ…). */
 style?: DrawStyle; 
 /**  Nền đồng màu quanh vật thể: giữ hay xoá (ảnh màu / ảnh chụp). */
-background?: BackgroundMode; params?: VisionParams } | 
+background?: BackgroundMode; params?: VisionParams; 
+/**
+ *  Đổi màu: mọi điểm có mực thành màu này (`#RRGGBB`), giữ độ trong.
+ *  Hợp cho icon / ảnh nét một màu. `None` = giữ màu gốc.
+ */
+tint?: string | null } | 
 /**  Chữ viết tay. Khung `transform`: (x, y) = góc trên-trái dòng đầu, `w` = bề rộng tối đa (xuống dòng). */
 { type: "text"; 
 /**  Nội dung (ký tự xuống dòng = xuống dòng). */
@@ -134,6 +139,8 @@ export type ProjectSettings = {
 	hand_mode?: HandMode,
 	/**  Hệ số cỡ tay người dùng chỉnh thêm (1 = cỡ mặc định của bộ tay). */
 	hand_scale?: number | null,
+	/**  Giọng đọc lời thoại (Giai đoạn 4). */
+	voice?: VoiceSettings,
 };
 
 /**  Một phân cảnh. */
@@ -145,6 +152,8 @@ export type Scene = {
 	elements: Element[],
 	/**  Thời gian giữ hình sau khi vẽ xong element cuối (ms). */
 	tail_ms?: number,
+	/**  Lời thoại đọc trong scene. Dấu `[n]` = element thứ n (theo thứ tự vẽ) bắt đầu vẽ đúng lúc đọc tới đó. */
+	narration?: string | null,
 };
 
 /**  Chấm vụn gắn vào một nét lớn: hiện ra khi mũi bút đi qua vị trí `at` (độ dài cung, px) của nét đó. */
@@ -187,4 +196,12 @@ export type VisionParams = {
 	min_stroke_length?: number | null,
 	/**  Bán kính cọ tô, tính theo tỉ lệ cạnh dài của ảnh (0.025 = 2,5%). */
 	brush_size?: number | null,
+};
+
+/**  Giọng đọc lời thoại. */
+export type VoiceSettings = {
+	/**  Tên giọng của dịch vụ (Azure), vd. `vi-VN-HoaiMyNeural`. */
+	name?: string,
+	/**  Tốc độ đọc (1 = bình thường, 0.5–2). */
+	rate?: number | null,
 };

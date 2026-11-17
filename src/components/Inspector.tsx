@@ -8,7 +8,8 @@ import type {
   TextAlign,
   Timing,
 } from "../bindings/model";
-import type { ElementInfo, HandEntry } from "../api";
+import type { ElementInfo, HandEntry, NarrationInfo } from "../api";
+import { VOICES } from "./VoiceDialog";
 import { boxOf, findElement, useEditor } from "../store";
 import { CONTENT } from "../theme";
 import { ColorField, NumberField, SelectField, TextField } from "./fields";
@@ -41,15 +42,23 @@ const HAND_MODES: [HandMode, string][] = [
   ["full", "Cả cánh tay"],
 ];
 
-type Props = { info: ElementInfo[]; hands: HandEntry[]; onManageHands: () => void };
+/** Giọng đọc: trạng thái từng scene + hành động (tạo giọng, mở cài đặt). */
+export type VoiceProps = {
+  narration: NarrationInfo[];
+  generating: boolean;
+  onGenerate: () => void;
+  onSettings: () => void;
+};
 
-export default function Inspector({ info, hands, onManageHands }: Props) {
+type Props = { info: ElementInfo[]; hands: HandEntry[]; onManageHands: () => void; voice: VoiceProps };
+
+export default function Inspector({ info, hands, onManageHands, voice }: Props) {
   const project = useEditor((s) => s.project);
   const selectedId = useEditor((s) => s.selectedId);
   const el = findElement(project, selectedId);
   return (
     <aside className="panel right">
-      {el ? <ElementProps el={el} info={info.find((i) => i.id === el.id)} /> : <SceneProps hands={hands} onManageHands={onManageHands} />}
+      {el ? <ElementProps el={el} info={info.find((i) => i.id === el.id)} /> : <SceneProps hands={hands} onManageHands={onManageHands} voice={voice} />}
     </aside>
   );
 }
@@ -108,6 +117,7 @@ function ElementProps({ el, info }: { el: Element; info?: ElementInfo }) {
             options={BACKGROUNDS}
             onChange={(background) => updateKind(el.id, { background })}
           />
+          <TintField value={k.tint ?? null} onChange={(tint) => updateKind(el.id, { tint })} />
           <NumberField
             label="Cỡ cọ tô"
             value={(k.params?.brush_size ?? 0.025) * 100}
@@ -153,7 +163,7 @@ function ElementProps({ el, info }: { el: Element; info?: ElementInfo }) {
   );
 }
 
-function SceneProps({ hands, onManageHands }: { hands: HandEntry[]; onManageHands: () => void }) {
+function SceneProps({ hands, onManageHands, voice }: { hands: HandEntry[]; onManageHands: () => void; voice: VoiceProps }) {
   const project = useEditor((s) => s.project);
   const sceneIndex = useEditor((s) => s.sceneIndex);
   const { renameScene, updateScene, updateSettings } = useEditor.getState();
@@ -186,6 +196,21 @@ function SceneProps({ hands, onManageHands }: { hands: HandEntry[]; onManageHand
         />
       </section>
 
+      <h4>Lời thoại</h4>
+      <section>
+        <TextField
+          label=""
+          multiline
+          value={scene.narration ?? ""}
+          placeholder="Gõ lời đọc cho cảnh này…"
+          onCommit={(v) => updateScene(i, { narration: v.trim() ? v : null })}
+        />
+        <p className="hint small">
+          Gõ <code>[1]</code>, <code>[2]</code>… vào chỗ muốn đối tượng số 1, 2 (thứ tự vẽ bên trái) bắt đầu vẽ đúng lúc đọc tới.
+        </p>
+        <NarrationState info={voice.narration.find((n) => n.scene === scene.id)} voice={voice} />
+      </section>
+
       <div className="panel-head">
         <h3>Dự án</h3>
       </div>
@@ -215,7 +240,79 @@ function SceneProps({ hands, onManageHands }: { hands: HandEntry[]; onManageHand
         />
         <ColorField label="Nền mặc định" value={set.background ?? CONTENT.background} onChange={(background) => updateSettings({ background })} />
         <NumberField label="FPS xuất" value={set.fps ?? 30} min={10} max={60} onCommit={(fps) => updateSettings({ fps })} />
+        <SelectField
+          label="Giọng đọc"
+          value={set.voice?.name ?? VOICES[0][0]}
+          options={VOICES}
+          onChange={(name) => updateSettings({ voice: { name, rate: set.voice?.rate ?? 1 } })}
+        />
+        <NumberField
+          label="Tốc độ đọc"
+          value={(set.voice?.rate ?? 1) * 100}
+          min={50}
+          max={200}
+          step={5}
+          suffix="%"
+          onCommit={(v) => updateSettings({ voice: { name: set.voice?.name ?? VOICES[0][0], rate: v / 100 } })}
+        />
+        <button className="link" onClick={voice.onSettings}>
+          Cài đặt giọng đọc (key Azure)…
+        </button>
       </section>
     </>
+  );
+}
+
+/** Trạng thái giọng đọc của scene + nút tạo giọng. */
+function NarrationState({ info, voice }: { info?: NarrationInfo; voice: VoiceProps }) {
+  if (!info || info.state === "none") return null;
+  const missing = voice.narration.filter((n) => n.state === "missing").length;
+  return (
+    <div className="narration-state">
+      {info.state === "ready" ? (
+        <span>✓ Đã có giọng đọc · {(info.duration_ms / 1000).toFixed(1)} s</span>
+      ) : (
+        <span>Chưa tạo giọng cho lời thoại này</span>
+      )}
+      {info.unknown_markers.length > 0 && (
+        <span className="err">Không có đối tượng số {info.unknown_markers.join(", ")} trong cảnh</span>
+      )}
+      {missing > 0 && (
+        <button className="primary" onClick={voice.onGenerate} disabled={voice.generating}>
+          {voice.generating ? "Đang tạo giọng…" : missing > 1 ? `Tạo giọng đọc (${missing} cảnh)` : "Tạo giọng đọc"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Đổi màu ảnh: tắt = giữ màu gốc; bật = mọi nét thành một màu (hợp cho icon, mũi tên, ảnh nét). */
+function TintField({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  return (
+    <div className="tint">
+      <label className="field">
+        <span>Đổi màu nét</span>
+        <input
+          type="checkbox"
+          checked={value !== null}
+          onChange={(e) => onChange(e.target.checked ? CONTENT.swatches[1] : null)}
+        />
+      </label>
+      {value !== null && (
+        <div className="swatches">
+          {CONTENT.swatches.map((c) => (
+            <button
+              key={c}
+              className={`swatch ${value.toUpperCase() === c ? "on" : ""}`}
+              style={{ background: c }}
+              title={c}
+              aria-label={`Màu ${c}`}
+              onClick={() => onChange(c)}
+            />
+          ))}
+          <input type="color" value={value.slice(0, 7)} onChange={(e) => onChange(e.target.value.toUpperCase())} title="Màu khác…" />
+        </div>
+      )}
+    </div>
   );
 }

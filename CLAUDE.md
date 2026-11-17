@@ -2,7 +2,7 @@
 
 - **Talk to the user in Vietnamese.** Code identifiers in English; code comments and internal docs (`docs/`) may be Vietnamese. `README.md` and this file stay in English.
 - The master plan lives in `not_push_git/` (files 00–09, git-ignored). Accepted decisions: `docs/adr/`. Progress: `not_push_git/06-lo-trinh-va-tieu-chi-hoan-thanh.md`.
-- Current phase: **Phase 3 (Tauri editor) in progress** (`docs/giai-doan-3/`). Phase 2 (handwriting, brush reveal, SVG paths — `docs/giai-doan-2/`) is done. Open decision: TTS provider (ADR-0012).
+- Current phase: **Phase 4 (narration & sync) in progress** (`docs/giai-doan-4/`); Phase 3 editor mostly done (`docs/giai-doan-3/`). TTS = Azure AI Speech via the official WebSocket endpoint and the user's key (ADR-0012); default voice `vi-VN-HoaiMyNeural`. Key: OS keyring (`wb_audio::credentials`) or `WB_AZURE_SPEECH_KEY`/`WB_AZURE_SPEECH_REGION` in the git-ignored `.env` — never print or commit it. `cargo test -p wb-audio -- --ignored` calls Azure for real (uses quota). User-facing progress summary: `docs/TIEN-TRINH.md` (keep it short, Vietnamese).
 - Default hand: `assets/hands/pen-brown`. Two hand modes (`settings.hand_mode`): `wrist` (default; cropped at the `wrist` line in `hand.json` — keep a little forearm past the wrist, feathered; sets without `wrist`, e.g. `pencil-green` = pencil only, use the whole image) and `full` (whole image scaled by `full_scale`). Prepare new hand images with `wb remove-bg`. Do not extend the arm artificially — the user rejected it. Default font: `assets/fonts/PatrickHand-Regular.ttf`.
 - Skeletonization uses **Guo–Hall**, not Zhang–Suen (ADR-0020). Run `UPDATE_GOLDEN=1 cargo test -p wb-compile` only when a visual change is intended, and review the PNGs in `tests/golden/`.
 

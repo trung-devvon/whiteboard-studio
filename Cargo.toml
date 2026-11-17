@@ -42,6 +42,11 @@ specta = { version = "=2.0.0-rc.28", features = ["derive"] }
 specta-typescript = "0.0.15"
 specta-serde = "0.0.15"
 unicode-normalization = "0.1"
+# Giọng đọc (Giai đoạn 4): WebSocket TLS tới Azure Speech (TLS của hệ điều hành), đọc file .env khi phát triển
+tungstenite = { version = "0.28", default-features = false, features = ["handshake", "native-tls"] }
+dotenvy = "0.15"
+# Cất key dịch vụ trong kho mật khẩu của hệ điều hành (Windows Credential Manager / macOS Keychain)
+keyring = { version = "3.6", features = ["windows-native", "apple-native"] }
 
 [workspace.lints.rust]
 unsafe_code = "warn"

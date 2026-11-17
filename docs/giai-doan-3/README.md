@@ -64,7 +64,7 @@ npm run dev             # mở http://localhost:1420 → "Mở dự án…"
 - Gỡ bỏ code spike Giai đoạn 0 (`spikes/`, `src/spike`, `src-tauri/src/spike.rs`) cùng 2 ngoại lệ `cargo deny` của rustybuzz/ttf-parser.
 
 ## 5. Việc còn lại của Giai đoạn 3
-1. Đổi màu icon; thêm bộ Tabler nếu cần.
+1. ~~Đổi màu icon~~ (xong, mục 8); thêm bộ Tabler nếu cần.
 2. Overlay thứ tự nét khi chọn element; keyframe snapshot để tua ngược nhanh.
 3. i18n vi/en.
 4. Gửi gói theo scene thay vì cả dự án khi dự án lớn.
@@ -87,3 +87,10 @@ npm run dev             # mở http://localhost:1420 → "Mở dự án…"
 - `wb_compile::icons::IconIndex`: chấm điểm theo tên/thẻ; bảng ~100 từ khoá tiếng Việt → tiếng Anh; test `english_and_vietnamese_queries_find_icons`.
 - **Bắt dính khi kéo**: cạnh trái/giữa/phải (trên/giữa/dưới) hút vào mép + giữa khung và cạnh/giữa element khác trong 6 px, hiện đường gióng hồng; giữ **Alt** để tắt.
 - Đã thử trong trình duyệt (mock): mở hộp icon, thêm icon, kéo lệch 3 px → hút về giữa khung.
+
+## 8. Phần 4 (2026-11-17): giao diện "Giấy & Mực", đổi màu nét
+- **Giao diện 5 màu** (trắng, be, cát, mực, đất nung) theo skill `.claude/skills/whiteboard-ui/`. Chữ luôn đặc, tương phản ≥ 4.5:1. Số thứ tự element có tấm nền riêng, đường khung/đường gióng có quầng trắng để rõ trên mọi hình. Màu cho Konva/SVG lấy từ `src/theme.ts`. Kiểm tra: `python .claude/skills/whiteboard-ui/scripts/check_palette.py src`.
+- **Đổi màu nét**: trường mới `tint` của element ảnh (`#RRGGBB`, bỏ trống = giữ màu gốc). Inspector → "Đổi màu nét" + 7 màu gợi ý + ô chọn màu.
+  - Màu được áp lúc lắp gói (`wb_compile::tinted`), không nằm trong khoá đệm → đổi màu không phân tích lại ảnh.
+  - Test `tint_recolors_image_ink_without_reanalysis`. Tổng 70 test.
+- Đã thử trong trình duyệt (mock): ô "Đổi màu nét" và bảng màu hiện đúng. Mock không biên dịch lại nên chưa thấy màu mới trong Player; màu được kiểm bằng test Rust.

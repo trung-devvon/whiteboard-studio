@@ -18,7 +18,8 @@
           "transform": { "x": 560, "y": 400, "w": 800, "h": 600 }
         }
       ],
-      "tail_ms": 1000
+      "tail_ms": 1000,
+      "narration": "[1] Chào mừng các bạn đến với bài học hôm nay. [2] Mọi ý tưởng lớn đều bắt đầu từ một bóng đèn nhỏ."
     },
     {
       "id": "s2",
@@ -36,7 +37,8 @@
           "transform": { "x": 1200, "y": 420, "w": 680, "h": 300 }
         }
       ],
-      "tail_ms": 1200
+      "tail_ms": 1200,
+      "narration": "[1] Còn đây là một ngôi nhà. [2] Ngôi nhà mơ ước của chúng mình."
     }
   ]
 }

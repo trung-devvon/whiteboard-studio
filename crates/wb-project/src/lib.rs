@@ -255,6 +255,7 @@ pub fn new_scene(n: usize) -> Scene {
         background: None,
         elements: vec![],
         tail_ms: 1500,
+        narration: None,
     }
 }
 
@@ -268,6 +269,7 @@ pub fn new_image_element(id: String, src: String) -> Element {
             style: Default::default(),
             background: Default::default(),
             params: Default::default(),
+            tint: None,
         },
         transform: Transform {
             x: 460.0,

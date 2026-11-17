@@ -1,6 +1,6 @@
 # ADR-0012: Nguồn giọng đọc (TTS) cho MVP
 
-- **Trạng thái:** ⏳ Cần quyết định — Edge-TTS đã bị **loại**
+- **Trạng thái:** ✅ Chấp nhận (2026-11-18) — **Azure AI Speech**, giọng mặc định **HoaiMy**; Edge-TTS bị **loại**
 - **Ngày:** 2026-11-14
 
 ## Bối cảnh
@@ -32,3 +32,17 @@ Gợi ý cho giai đoạn thử nghiệm: **Azure F0** (đủ dùng thử, có m
 ## Hệ quả
 - Rủi ro R2 chuyển sang trạng thái "đã xảy ra" — đã xử lý bằng cách loại bỏ sớm (rẻ hơn nhiều so với phát hiện ở Giai đoạn 4).
 - Giai đoạn 4 cần thêm: màn hình nhập key TTS (lưu trong keyring), spike S3' với provider được chọn.
+
+## Quyết định cuối (2026-11-18)
+- Chủ dự án chọn **Azure AI Speech**, gói **Free F0** (tài khoản Azure for Students), vùng `japaneast`
+  (tài khoản sinh viên bị giới hạn vùng — Southeast Asia không được phép). Giọng mặc định: `vi-VN-HoaiMyNeural`.
+- **Kênh gọi:** WebSocket chính thức `wss://<vùng>.tts.speech.microsoft.com/cognitiveservices/websocket/v1`,
+  xác thực bằng key của người dùng (`Ocp-Apim-Subscription-Key`). REST `/cognitiveservices/v1` không trả mốc thời gian.
+  Giao thức tin nhắn theo Speech SDK JavaScript mã nguồn mở (MIT) của Microsoft — không token ẩn, không vượt DRM.
+- **Đồng bộ:** dấu `[n]` trong lời thoại → SSML `<bookmark mark="e<n>"/>` → Azure trả mốc → element n bắt đầu vẽ đúng mốc
+  (`wb-timing`: chờ tới mốc; các element trước co thời lượng theo tỉ lệ cho kịp, tối thiểu 400 ms mỗi lớp).
+  Mốc từng từ (WordBoundary) được lưu để làm phụ đề sau.
+- **Key:** cất trong kho mật khẩu hệ điều hành (crate `keyring`, Windows Credential Manager); khi phát triển đọc
+  `WB_AZURE_SPEECH_KEY` / `WB_AZURE_SPEECH_REGION` từ biến môi trường hoặc `.env` (đã gitignore). Không ghi vào dự án.
+- **Đệm:** `generated/tts/<khoá>.wav|json` trong thư mục dự án; khoá = FNV-1a(giọng, tốc độ, lời) → chỉ gọi lại khi đổi.
+- Đường offline (file audio + Whisper alignment) vẫn giữ trong kế hoạch, làm sau.

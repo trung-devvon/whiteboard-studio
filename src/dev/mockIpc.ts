@@ -10,11 +10,24 @@ const BUNDLE = "/target/preview-bundle.bin";
 export async function installMock() {
   const project = await (await fetch(DEMO)).json();
   const bundle = new Uint8Array(await (await fetch(BUNDLE)).arrayBuffer());
-  const header = new TextEncoder().encode(JSON.stringify({ elements: [], compile_ms: 0 }));
-  const packed = new Uint8Array(4 + header.length + bundle.length);
-  new DataView(packed.buffer).setUint32(0, header.length, true);
-  packed.set(header, 4);
-  packed.set(bundle, 4 + header.length);
+  // gói giống compile_preview thật: [u32 độ dài JSON][JSON][u32 độ dài Bundle][Bundle] (mock không có tiếng)
+  const pack = (p: { scenes: { id: string; narration?: string | null }[] }) => {
+    const narration = p.scenes.map((s) => ({
+      scene: s.id,
+      state: s.narration?.trim() ? "missing" : "none",
+      key: "",
+      duration_ms: 0,
+      unknown_markers: [],
+    }));
+    const header = new TextEncoder().encode(JSON.stringify({ elements: [], compile_ms: 0, narration, has_audio: false }));
+    const out = new Uint8Array(8 + header.length + bundle.length);
+    const view = new DataView(out.buffer);
+    view.setUint32(0, header.length, true);
+    out.set(header, 4);
+    view.setUint32(4 + header.length, bundle.length, true);
+    out.set(bundle, 8 + header.length);
+    return out.buffer;
+  };
 
   // thư viện tay giả: đọc thẳng hand.json + ảnh trong assets/hands của repo
   const hands: Record<string, { dir: string; editable: boolean }> = {
@@ -38,7 +51,13 @@ export async function installMock() {
       case "project_create":
         return { root: "C:/demo/demo-phase2.wbproj", project, recovery: null };
       case "compile_preview":
-        return packed.buffer;
+        return pack(a.project as Parameters<typeof pack>[0]);
+      case "voice_status":
+        return { configured: false, source: null, region: null };
+      case "voice_save":
+      case "voice_preview":
+      case "narration_generate":
+        throw "Chế độ thử giao diện trên trình duyệt không gọi được Azure — chạy app thật (npm run tauri dev).";
       case "icons_search": {
         // giả lập: lọc theo tên trong một danh sách nhỏ
         const names = ["arrow-right", "arrow-left", "arrow-up", "arrow-down", "redo", "lightbulb", "house", "user", "users", "star", "heart", "rocket", "clock", "book-open"];
@@ -70,6 +89,8 @@ export async function installMock() {
         return null;
       case "plugin:dialog|open":
         return "C:/demo/demo-phase2.wbproj";
+      case "plugin:dialog|save":
+        return "C:/demo/du-an-mau.wbproj";
       default:
         return null;
     }

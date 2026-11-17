@@ -31,6 +31,8 @@ pub struct ExportOptions {
     pub range_ms: Option<(f64, f64)>,
     pub ffmpeg: Option<PathBuf>,
     pub cancel: Arc<AtomicBool>,
+    /// Rãnh tiếng (file WAV dài bằng cả video, bắt đầu ở 0 ms) — giọng đọc. `None` = video câm.
+    pub audio: Option<PathBuf>,
 }
 
 impl Default for ExportOptions {
@@ -42,6 +44,7 @@ impl Default for ExportOptions {
             range_ms: None,
             ffmpeg: None,
             cancel: Arc::new(AtomicBool::new(false)),
+            audio: None,
         }
     }
 }
@@ -80,7 +83,8 @@ pub fn export_mp4(
     };
 
     let log_path = out.with_extension("ffmpeg.log");
-    let mut child = ffmpeg::spawn_encoder(&ffmpeg, w, h, opts.fps, encoder, opts.bitrate, out, &log_path)?;
+    let audio = opts.audio.as_deref().map(|p| (p, from));
+    let mut child = ffmpeg::spawn_encoder(&ffmpeg, w, h, opts.fps, encoder, opts.bitrate, audio, out, &log_path)?;
     let mut stdin = child.stdin.take().expect("stdin");
 
     // Luồng ghi riêng + kênh giới hạn 6 khung (backpressure: RAM không phình khi FFmpeg chậm)

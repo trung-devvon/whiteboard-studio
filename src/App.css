@@ -491,6 +491,73 @@ button.link:hover:not(:disabled) {
   line-height: 1.55;
 }
 
+/* Đổi màu nét (ô màu là màu NỘI DUNG người dùng chọn, không phải màu giao diện) */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 8px;
+}
+.swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--white);
+  box-shadow: 0 0 0 1px var(--sand);
+}
+.swatch.on {
+  box-shadow: 0 0 0 2px var(--clay);
+}
+.swatches input[type="color"] {
+  width: 30px;
+  height: 24px;
+  padding: 1px;
+  border: 1px solid var(--sand);
+  border-radius: 5px;
+  background: var(--white);
+}
+
+/* Lời thoại */
+.panel code {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--beige);
+  border: 1px solid var(--sand);
+  font-size: 11.5px;
+}
+.narration-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 6px 0 4px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--beige);
+  font-size: 12px;
+}
+.narration-state .err {
+  font-size: 12px;
+}
+
+/* Cài đặt giọng đọc */
+.modal.voice-dialog {
+  width: min(460px, 94vw);
+}
+.voice-state {
+  margin: 4px 0 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: var(--beige);
+  border: 1px solid var(--sand);
+  font-weight: 600;
+}
+.voice-dialog .field input {
+  width: 100%;
+}
+
 /* Hộp thoại */
 .modal-back {
   position: fixed;
