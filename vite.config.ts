@@ -25,8 +25,18 @@ export default defineConfig(() => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // 3. only the web UI (src/) needs live reload. Watching Rust build output (target/, tens of
+      //    thousands of files), crates, assets and docs made dev-server start and page loads very slow.
+      ignored: [
+        "**/src-tauri/**",
+        "**/target/**",
+        "**/crates/**",
+        "**/assets/**",
+        "**/docs/**",
+        "**/tests/**",
+        "**/not_push_git/**",
+        "**/.claude/**",
+      ],
     },
   },
 }));

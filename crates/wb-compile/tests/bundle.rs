@@ -170,7 +170,15 @@ fn narration_markers_anchor_elements_and_build_audio_track() {
         );
         let speech = wb_audio::Speech {
             duration_ms: 5000.0,
-            words: vec![],
+            words: wb_audio::narration::spoken(sc.narration.as_deref().unwrap())
+                .split_whitespace()
+                .enumerate()
+                .map(|(i, w)| wb_audio::WordMark {
+                    text: w.trim_matches(|c: char| !c.is_alphanumeric()).into(),
+                    start_ms: 200.0 + i as f64 * 250.0,
+                    duration_ms: 200.0,
+                })
+                .collect(),
             bookmarks: vec![
                 wb_audio::Bookmark {
                     name: "e1".into(),
@@ -214,5 +222,21 @@ fn narration_markers_anchor_elements_and_build_audio_track() {
     assert_eq!(at(10.0), 1000);
     assert_eq!(at(s2 - 10.0), 0, "khoảng lặng giữa hai scene");
     assert_eq!(at(s2 + 10.0), 1000);
+
+    // rãnh tiếng đầy đủ = giọng + tiếng bút; phụ đề theo câu, đúng giờ từng scene
+    let sound = p.soundtrack();
+    let full = sound.audio.unwrap();
+    assert_eq!(full.len(), track.len());
+    let first = tl.scenes[0].elements[0].slots[0];
+    let mid = ((first.t0 + first.t1) / 2.0 * wb_audio::SAMPLE_RATE as f64 / 1000.0) as usize;
+    assert_ne!(full[mid], track[mid], "có tiếng bút khi đang vẽ");
+    let subs = &sound.subtitles;
+    assert_eq!(subs[0].text, "Chào mừng các bạn đến với bài học hôm nay.");
+    assert_eq!(subs[0].start_ms, 200.0);
+    let s2_first = subs.iter().find(|c| c.start_ms >= s2).unwrap();
+    assert_eq!(s2_first.start_ms, s2 + 200.0);
+    assert!(subs.windows(2).all(|w| w[0].end_ms <= w[1].start_ms));
+    let srt = wb_audio::subtitles::to_srt(subs);
+    assert!(srt.starts_with("1\n00:00:00,200 --> "), "{srt}");
     let _ = std::fs::remove_dir_all(&dir);
 }

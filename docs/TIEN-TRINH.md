@@ -12,7 +12,7 @@
 | 1 — Lõi vẽ + dòng lệnh | Ảnh nét → bàn tay vẽ lại → xuất MP4 (FFmpeg) | ✅ |
 | 2 — Chữ, màu, SVG | Viết tay tiếng Việt có dấu, tô màu bằng cọ, vẽ theo nét SVG, 2 kiểu tay | ✅ |
 | 3 — Ứng dụng desktop | Editor đầy đủ (xem bên dưới) | 🔄 phần lớn xong |
-| 4 — Giọng đọc & đồng bộ (MVP) | Giọng đọc, khớp nét vẽ với lời, tiếng bút, phụ đề | 🔄 phần 1 xong: giọng Azure + đồng bộ + video có tiếng |
+| 4 — Giọng đọc & đồng bộ (MVP) | Giọng đọc, khớp nét vẽ với lời, tiếng bút, phụ đề | 🔄 phần 1–2 xong: giọng Azure, đồng bộ, tiếng bút, phụ đề |
 | 5–8 | Studio nâng cao, AI xử lý ảnh khó, AI đạo diễn, phát hành | ⏳ |
 
 ## 2. App hiện có những tính năng gì
@@ -43,6 +43,8 @@
 - Giọng **HoaiMy** (nữ, mặc định) hoặc **NamMinh** (nam), chỉnh tốc độ đọc. Giọng do Azure tạo bằng key của bạn.
 - Key cất trong kho mật khẩu của Windows. Giọng đã tạo được lưu trong dự án, nên không tốn hạn mức khi mở lại.
 - Xem trước có tiếng; video xuất ra có tiếng.
+- **Tiếng bút** sột soạt khi vẽ (app tự sinh, chỉnh âm lượng hoặc tắt).
+- **Phụ đề** tự tạo từ lời thoại: nhúng vào video và ghi kèm file `.srt`.
 
 **Xem và xuất**
 - Xem trước ngay trong app (Player chạy WebAssembly), có thanh tua và nút phát/dừng.
@@ -68,11 +70,9 @@
 
 ## 4. Đang ở đâu, tiếp theo là gì
 
-**Vừa xong:** Giai đoạn 4, phần 1 — giọng đọc và đồng bộ nét vẽ theo lời. Chi tiết: `docs/giai-doan-4/README.md`.
+**Vừa xong:** Giai đoạn 4, phần 2 — tiếng bút và phụ đề (phần 1: giọng đọc + đồng bộ). Chi tiết: `docs/giai-doan-4/README.md`.
 
 **Còn lại của Giai đoạn 4:**
-- Tiếng bút khi vẽ.
-- Phụ đề SRT.
 - Thanh thời gian có sóng âm, kéo được các mốc `[n]`.
 - Nhập file thu âm của bạn thay cho giọng máy.
 

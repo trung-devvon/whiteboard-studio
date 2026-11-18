@@ -45,8 +45,8 @@ pub struct Compiled {
     pub engine: Engine,
     pub project: Project,
     pub report: Vec<ElementReport>,
-    /// Rãnh giọng đọc cả video (mono, `wb_audio::SAMPLE_RATE`), nếu có scene đã tạo giọng.
-    pub audio: Option<Vec<i16>>,
+    /// Giọng đọc + tiếng bút + phụ đề.
+    pub sound: Soundtrack,
     pub narration: Vec<SceneNarration>,
 }
 
@@ -110,6 +110,115 @@ pub struct Prepared {
     pub owners: Vec<Vec<usize>>,
     /// Giọng đọc của từng scene (theo thứ tự scene).
     pub narration: Vec<SceneNarration>,
+    /// Cài đặt tiếng bút + hạt giống ngẫu nhiên của dự án (tiếng bút tất định).
+    pub sound: wb_model::SoundSettings,
+    pub seed: u32,
+}
+
+/// Âm thanh + phụ đề của cả video.
+#[derive(Debug, Clone, Default)]
+pub struct Soundtrack {
+    /// Giọng đọc + tiếng bút (mono, `wb_audio::SAMPLE_RATE`). `None` = video câm.
+    pub audio: Option<Vec<i16>>,
+    pub subtitles: Vec<wb_audio::subtitles::Cue>,
+}
+
+impl Soundtrack {
+    /// File phụ cho bước xuất video `out`: rãnh tiếng → `<out>.sound.wav` (tạm, xoá sau khi xuất)
+    /// và phụ đề → `<out>.srt` (giữ lại — dùng để tải lên YouTube…, `subtitles` = false thì không ghi).
+    pub fn write_for_export(&self, out: &Path, subtitles: bool) -> Result<ExportFiles> {
+        let mut f = ExportFiles::default();
+        if let Some(pcm) = &self.audio {
+            let wav = out.with_extension("sound.wav");
+            wb_audio::wav::write(&wav, pcm, wb_audio::SAMPLE_RATE).context("không ghi được file tiếng tạm")?;
+            f.audio = Some(wav);
+        }
+        if subtitles && !self.subtitles.is_empty() {
+            let srt = out.with_extension("srt");
+            std::fs::write(&srt, wb_audio::subtitles::to_srt(&self.subtitles))
+                .with_context(|| format!("không ghi được {}", srt.display()))?;
+            f.subtitles = Some(srt);
+        }
+        Ok(f)
+    }
+}
+
+/// File phụ đã ghi cho một lần xuất video.
+#[derive(Debug, Default)]
+pub struct ExportFiles {
+    pub audio: Option<PathBuf>,
+    pub subtitles: Option<PathBuf>,
+}
+
+impl ExportFiles {
+    /// Xoá file tiếng tạm (giữ file phụ đề).
+    pub fn cleanup(&self) {
+        if let Some(p) = &self.audio {
+            let _ = std::fs::remove_file(p);
+        }
+    }
+}
+
+impl Prepared {
+    /// Dựng rãnh tiếng + phụ đề (giải Timeline từ gói — không cần dựng Engine).
+    pub fn soundtrack(&self) -> Soundtrack {
+        soundtrack(
+            &self.bundle,
+            &self.bundle.timeline(),
+            &self.narration,
+            &self.sound,
+            self.seed,
+        )
+    }
+}
+
+/// Rãnh tiếng = giọng đọc (đúng đầu mỗi scene) + tiếng bút (đúng từng nét); phụ đề theo mốc từng từ.
+pub fn soundtrack(
+    bundle: &Bundle,
+    timeline: &Timeline,
+    narration: &[SceneNarration],
+    sound: &wb_model::SoundSettings,
+    seed: u32,
+) -> Soundtrack {
+    let voice = narration_track(narration, timeline);
+    let strokes: Vec<wb_audio::sfx::PenStroke> = bundle
+        .scenes
+        .iter()
+        .zip(&timeline.scenes)
+        .flat_map(|(bs, ts)| bs.elements.iter().zip(&ts.elements))
+        .flat_map(|(be, te)| be.plan.strokes.iter().zip(&te.slots))
+        .map(|(s, slot)| wb_audio::sfx::PenStroke {
+            t0_ms: slot.t0,
+            t1_ms: slot.t1,
+            brush: s.kind == wb_model::StrokeKind::Fill,
+        })
+        .collect();
+    let pen = (sound.pen_volume > 0.0 && !strokes.is_empty())
+        .then(|| wb_audio::sfx::pen_track(timeline.total_ms, &strokes, seed, sound.pen_volume));
+    let audio = match (voice, pen) {
+        (Some(mut v), Some(p)) => {
+            for (a, b) in v.iter_mut().zip(&p) {
+                *a = a.saturating_add(*b);
+            }
+            Some(v)
+        }
+        (v, p) => v.or(p),
+    };
+    let subtitles = narration
+        .iter()
+        .zip(&timeline.scenes)
+        .filter_map(|(n, sc)| {
+            let s = n.speech.as_ref()?;
+            Some(wb_audio::subtitles::cues(
+                &n.spoken,
+                &s.words,
+                s.duration_ms,
+                sc.start_ms,
+            ))
+        })
+        .flatten()
+        .collect();
+    Soundtrack { audio, subtitles }
 }
 
 /// Trạng thái giọng đọc của một scene.
@@ -135,13 +244,17 @@ pub struct SceneNarration {
     pub unknown_markers: Vec<usize>,
     #[serde(skip)]
     pub speech: Option<Arc<wb_audio::Speech>>,
+    /// Phần được đọc (bỏ dấu `[n]`) — chữ của phụ đề.
+    #[serde(skip)]
+    pub spoken: String,
 }
 
 impl SceneNarration {
     /// Lời thoại của scene → khoá đệm + giọng đã tạo (nếu có trong `generated/tts/`).
     pub fn load(ctx: &CompileContext, sc: &wb_model::Scene, voice: &wb_model::VoiceSettings) -> Self {
         let text = sc.narration.as_deref().unwrap_or("");
-        if wb_audio::narration::spoken(text).trim().is_empty() {
+        let spoken = wb_audio::narration::spoken(text).trim().to_string();
+        if spoken.is_empty() {
             return Self {
                 scene: sc.id.clone(),
                 state: NarrationState::None,
@@ -149,6 +262,7 @@ impl SceneNarration {
                 duration_ms: 0.0,
                 unknown_markers: vec![],
                 speech: None,
+                spoken,
             };
         }
         let key = wb_audio::narration::cache_key(text, &voice.name, voice.rate);
@@ -171,6 +285,7 @@ impl SceneNarration {
             key,
             unknown_markers,
             speech,
+            spoken,
         }
     }
 }
@@ -332,13 +447,13 @@ pub fn compile(project_path: &Path, out_width: Option<u32>) -> Result<Compiled> 
     let ctx = CompileContext::new(project_path.parent().unwrap_or(Path::new(".")));
     let prepared = prepare(&project, &ctx, None)?;
     let narration = prepared.narration.clone();
+    let sound = prepared.soundtrack();
     let (engine, report) = prepared.into_engine(out_width)?;
-    let audio = narration_track(&narration, engine.timeline());
     Ok(Compiled {
         engine,
         project,
         report,
-        audio,
+        sound,
         narration,
     })
 }
@@ -471,6 +586,8 @@ pub fn prepare(project: &Project, ctx: &CompileContext, cache: Option<&AnalysisC
         report,
         owners,
         narration,
+        sound: set.sound.clone(),
+        seed: set.seed,
     })
 }
 

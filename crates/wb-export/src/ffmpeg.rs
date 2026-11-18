@@ -115,6 +115,13 @@ pub fn probe_encoder(ffmpeg: &Path) -> Result<Encoder, FfmpegError> {
     found.ok_or(FfmpegError::NoEncoder)
 }
 
+/// Đầu vào phụ ngoài luồng hình: tiếng, phụ đề (cắt từ `from_ms` khi chỉ xuất một khoảng).
+pub(crate) struct Extra<'a> {
+    pub audio: Option<&'a Path>,
+    pub subtitles: Option<&'a Path>,
+    pub from_ms: f64,
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_encoder(
     ffmpeg: &Path,
@@ -123,7 +130,7 @@ pub(crate) fn spawn_encoder(
     fps: u32,
     enc: Encoder,
     bitrate: u32,
-    audio: Option<(&Path, f64)>,
+    extra: &Extra,
     out: &Path,
     log: &Path,
 ) -> Result<Child, FfmpegError> {
@@ -140,21 +147,28 @@ pub(crate) fn spawn_encoder(
         "rgba",
     ])
     .args(["-s", &format!("{w}x{h}"), "-r", &fps.to_string(), "-i", "-"]);
-    // giọng đọc: WAV thứ hai, cắt từ đầu khoảng xuất; AAC (encoder có sẵn trong bản LGPL)
-    if let Some((wav, from_ms)) = audio {
-        cmd.args(["-ss", &format!("{:.3}", from_ms / 1000.0), "-i"])
-            .arg(wav)
-            .args([
-                "-map",
-                "0:v:0",
-                "-map",
-                "1:a:0",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "160k",
-                "-shortest",
-            ]);
+    // tiếng (WAV) + phụ đề (SRT): thêm đầu vào, cắt từ đầu khoảng xuất
+    let ss = format!("{:.3}", extra.from_ms / 1000.0);
+    let mut maps = vec!["-map".to_string(), "0:v:0".to_string()];
+    for (i, (p, kind)) in [(extra.audio, "a"), (extra.subtitles, "s")]
+        .into_iter()
+        .filter_map(|(p, k)| p.map(|p| (p, k)))
+        .enumerate()
+    {
+        cmd.args(["-ss", &ss, "-i"]).arg(p);
+        maps.extend(["-map".to_string(), format!("{}:{kind}:0", i + 1)]);
+    }
+    if extra.audio.is_some() || extra.subtitles.is_some() {
+        cmd.args(&maps);
+    }
+    if extra.audio.is_some() {
+        // AAC: encoder có sẵn trong bản FFmpeg LGPL. Không dùng -shortest: luồng phụ đề thưa
+        // có thể làm FFmpeg cắt video ở dòng phụ đề cuối; WAV đã dài đúng bằng video.
+        cmd.args(["-c:a", "aac", "-b:a", "160k"]);
+    }
+    if extra.subtitles.is_some() {
+        // phụ đề mềm trong MP4 (bật/tắt được trên VLC, trình phát Windows…), gắn nhãn tiếng Việt
+        cmd.args(["-c:s", "mov_text", "-metadata:s:s:0", "language=vie"]);
     }
     cmd
         // RGB → YUV đúng ma trận BT.709, dải TV (tránh video nhạt/lệch màu)

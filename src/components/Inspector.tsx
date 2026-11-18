@@ -258,6 +258,15 @@ function SceneProps({ hands, onManageHands, voice }: { hands: HandEntry[]; onMan
         <button className="link" onClick={voice.onSettings}>
           Cài đặt giọng đọc (key Azure)…
         </button>
+        <NumberField
+          label="Tiếng bút"
+          value={(set.sound?.pen_volume ?? 1) * 100}
+          min={0}
+          max={200}
+          step={10}
+          suffix="%"
+          onCommit={(v) => updateSettings({ sound: { pen_volume: v / 100 } })}
+        />
       </section>
     </>
   );

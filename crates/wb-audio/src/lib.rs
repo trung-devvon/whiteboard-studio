@@ -8,7 +8,9 @@ pub mod azure;
 pub mod credentials;
 pub mod mix;
 pub mod narration;
+pub mod sfx;
 pub mod store;
+pub mod subtitles;
 pub mod wav;
 
 pub use azure::{AzureConfig, TtsError, synthesize};

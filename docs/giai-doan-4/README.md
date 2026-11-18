@@ -1,4 +1,4 @@
-# Giai đoạn 4 — Giọng đọc & đồng bộ (phần 1)
+# Giai đoạn 4 — Giọng đọc & đồng bộ (phần 1–2)
 
 > Nhánh: `phase-1-core-engine` · Quyết định: [ADR-0012](../adr/0012-nguon-giong-doc.md) · Kế hoạch: `not_push_git/06-…` (Giai đoạn 4)
 
@@ -15,7 +15,9 @@
 | CLI `wb tts <project.json>` | ✅ |
 | Dự án mẫu có sẵn lời thoại 2 cảnh | ✅ |
 | Marker kéo được trên waveform, timeline UI | ⏳ |
-| Tiếng bút (SFX), phụ đề SRT, chuẩn hoá âm lượng | ⏳ |
+| Tiếng bút tự sinh, khớp tốc độ từng nét (phần 2) | ✅ |
+| Phụ đề: file `.srt` + nhúng vào MP4 (phần 2) | ✅ |
+| Chuẩn hoá âm lượng (loudnorm) | ⏳ chưa cần — giọng Azure vốn đều tiếng |
 | Import file audio + Whisper alignment (đường offline) | ⏳ |
 
 ## 2. Dùng thử
@@ -45,3 +47,16 @@ cảnh kéo dài ≥ độ dài giọng + 400 ms; rãnh tiếng = giọng mỗi 
 - Test `narration_markers_anchor_elements_and_build_audio_track` (giọng giả lập, không mạng): element 2 đúng mốc ±1 ms ở cả 2 cảnh, kể cả khi element 1 có 2 lớp.
 - Golden Giai đoạn 1–2 không đổi. Tổng 79 test; clippy, tsc, `cargo deny`, kiểm tra màu sạch.
 - Giao diện thử trong trình duyệt (mock): ô lời thoại, trạng thái, nút tạo giọng, hộp cài đặt. **Chưa thử trong app Tauri thật** (lưu key vào Credential Manager, phát tiếng, xuất có tiếng qua app).
+
+## 5. Phần 2 (2026-11-18): tiếng bút, phụ đề
+- **Tiếng bút** (`wb_audio::sfx`): tự sinh, không dùng file âm thanh của bên thứ ba (không vướng bản quyền).
+  Tiếng ồn qua bộ lọc dải tần ~3 kHz (sột soạt ngòi bút), to/nhỏ theo vận tốc minimum-jerk của chính nét đó,
+  thêm "hạt" giấy ~25 Hz; nét tô bằng cọ trầm hơn (~1,2 kHz) và nhỏ hơn; im lặng khi nhấc bút.
+  Tất định theo `settings.seed`. Âm lượng: `settings.sound.pen_volume` (0 = tắt, mặc định 100%) — Inspector → *Tiếng bút*.
+- **Rãnh tiếng** = giọng đọc + tiếng bút (`Prepared::soundtrack()`), dùng chung cho xem trước, app và CLI.
+- **Phụ đề** (`wb_audio::subtitles`): chữ lấy từ lời thoại gốc (giữ dấu câu, hoa/thường), thời điểm lấy từ mốc từng từ
+  của Azure (ghép tuần tự; từ không ghép được — vd. số đọc thành chữ — chia theo số ký tự). Mỗi câu một khung;
+  khung > 84 ký tự cắt ở dấu phẩy gần giữa; > 42 ký tự xuống 2 dòng.
+  Xuất: `<video>.srt` cạnh video + nhúng vào MP4 dạng phụ đề mềm (`mov_text`, nhãn `vie`). Hộp *Xuất video* có ô bật/tắt.
+- Kiểm chứng: dự án mẫu → MP4 15,8 s có 3 luồng (H.264, AAC, phụ đề `vie`), `.srt` 4 dòng đúng câu;
+  test `tint`/`narration…` mở rộng kiểm tra tiếng bút có mặt khi vẽ và phụ đề đúng giờ từng scene. Tổng 83 test.

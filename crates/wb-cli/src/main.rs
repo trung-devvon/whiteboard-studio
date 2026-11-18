@@ -320,16 +320,14 @@ fn render(project: &Path, out: &Path, encoder: &str, width: Option<u32>, range: 
             );
         }
     }
-    // giọng đọc → file WAV tạm cạnh video, FFmpeg trộn vào
-    let wav = out.with_extension("narration.wav");
-    if let Some(pcm) = &c.audio {
-        wb_audio::wav::write(&wav, pcm, wb_audio::SAMPLE_RATE)?;
-    }
+    // giọng đọc + tiếng bút → WAV tạm; phụ đề → <out>.srt (giữ lại) và nhúng vào MP4
+    let files = c.sound.write_for_export(out, range.is_none())?;
     let opts = ExportOptions {
         fps: c.project.settings.fps,
         encoder: enc,
         range_ms: range.map(|(a, b)| (a, b.min(total_ms))),
-        audio: c.audio.is_some().then(|| wav.clone()),
+        audio: files.audio.clone(),
+        subtitles: files.subtitles.clone(),
         ..ExportOptions::default()
     };
     let res = export_mp4(&mut c.engine, out, &opts, |done, total| {
@@ -338,8 +336,16 @@ fn render(project: &Path, out: &Path, encoder: &str, width: Option<u32>, range: 
             let _ = std::io::stdout().flush();
         }
     });
-    let _ = std::fs::remove_file(&wav);
+    files.cleanup();
     let stats = res?;
+    if let Some(srt) = &files.subtitles {
+        println!(
+            "
+  Phụ đề: {} ({} dòng)",
+            srt.display(),
+            c.sound.subtitles.len()
+        );
+    }
     let video_s = stats.frames as f64 / opts.fps as f64;
     println!(
         "\nXong: {} · video {:.1}s · phân tích {:.1}s + xuất {:.1}s (render {:.1}s) · {:.1}× thời gian thực · encoder {}",

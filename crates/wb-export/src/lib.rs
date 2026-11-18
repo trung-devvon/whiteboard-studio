@@ -33,6 +33,8 @@ pub struct ExportOptions {
     pub cancel: Arc<AtomicBool>,
     /// Rãnh tiếng (file WAV dài bằng cả video, bắt đầu ở 0 ms) — giọng đọc. `None` = video câm.
     pub audio: Option<PathBuf>,
+    /// Phụ đề (file SRT, mốc tính từ 0 ms) — nhúng vào MP4 dạng phụ đề bật/tắt được.
+    pub subtitles: Option<PathBuf>,
 }
 
 impl Default for ExportOptions {
@@ -45,6 +47,7 @@ impl Default for ExportOptions {
             ffmpeg: None,
             cancel: Arc::new(AtomicBool::new(false)),
             audio: None,
+            subtitles: None,
         }
     }
 }
@@ -83,8 +86,12 @@ pub fn export_mp4(
     };
 
     let log_path = out.with_extension("ffmpeg.log");
-    let audio = opts.audio.as_deref().map(|p| (p, from));
-    let mut child = ffmpeg::spawn_encoder(&ffmpeg, w, h, opts.fps, encoder, opts.bitrate, audio, out, &log_path)?;
+    let extra = ffmpeg::Extra {
+        audio: opts.audio.as_deref(),
+        subtitles: opts.subtitles.as_deref(),
+        from_ms: from,
+    };
+    let mut child = ffmpeg::spawn_encoder(&ffmpeg, w, h, opts.fps, encoder, opts.bitrate, &extra, out, &log_path)?;
     let mut stdin = child.stdin.take().expect("stdin");
 
     // Luồng ghi riêng + kênh giới hạn 6 khung (backpressure: RAM không phình khi FFmpeg chậm)

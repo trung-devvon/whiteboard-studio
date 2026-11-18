@@ -141,6 +141,8 @@ export type ProjectSettings = {
 	hand_scale?: number | null,
 	/**  Giọng đọc lời thoại (Giai đoạn 4). */
 	voice?: VoiceSettings,
+	/**  Âm thanh khác: tiếng bút… */
+	sound?: SoundSettings,
 };
 
 /**  Một phân cảnh. */
@@ -154,6 +156,12 @@ export type Scene = {
 	tail_ms?: number,
 	/**  Lời thoại đọc trong scene. Dấu `[n]` = element thứ n (theo thứ tự vẽ) bắt đầu vẽ đúng lúc đọc tới đó. */
 	narration?: string | null,
+};
+
+/**  Âm thanh đi kèm nét vẽ. */
+export type SoundSettings = {
+	/**  Âm lượng tiếng bút (0 = tắt, 1 = bình thường, tối đa 2). */
+	pen_volume?: number | null,
 };
 
 /**  Chấm vụn gắn vào một nét lớn: hiện ra khi mũi bút đi qua vị trí `at` (độ dài cung, px) của nét đó. */

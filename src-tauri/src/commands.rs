@@ -10,7 +10,7 @@ use tauri::State;
 use tauri::ipc::{Channel, Response};
 use wb_compile::hands::{self, HandEntry, HandMeta};
 use wb_compile::icons::IconIndex;
-use wb_compile::{AnalysisCache, CompileContext, SceneNarration, narration_track, prepare};
+use wb_compile::{AnalysisCache, CompileContext, SceneNarration, prepare};
 use wb_model::Project;
 use wb_project::ProjectDir;
 
@@ -308,7 +308,7 @@ pub async fn compile_preview(
     tauri::async_runtime::spawn_blocking(move || -> CmdResult<Response> {
         let t0 = Instant::now();
         let mut prepared = prepare(&project, &ctx, Some(&cache)).map_err(err_chain)?;
-        let audio = narration_track(&prepared.narration, &prepared.bundle.timeline());
+        let audio = prepared.soundtrack().audio;
         prepared.bundle.fit_for_preview(width);
         let header = PreviewHeader {
             elements: prepared
@@ -370,6 +370,7 @@ pub async fn export_video(
     project: Project,
     out: String,
     width: Option<u32>,
+    subtitles: bool,
     on_event: Channel<ExportEvent>,
 ) -> CmdResult<()> {
     let cancel = Arc::new(AtomicBool::new(false));
@@ -379,21 +380,17 @@ pub async fn export_video(
     let result = tauri::async_runtime::spawn_blocking(move || -> CmdResult<()> {
         let _ = on_event.send(ExportEvent::Preparing);
         let prepared = prepare(&project, &ctx, Some(&cache)).map_err(err_chain)?;
-        let narration = prepared.narration.clone();
+        // giọng đọc + tiếng bút → WAV tạm; phụ đề → <video>.srt + nhúng vào MP4
+        let files = prepared
+            .soundtrack()
+            .write_for_export(Path::new(&out), subtitles)
+            .map_err(err_chain)?;
         let (mut engine, _) = prepared.into_engine(width).map_err(err_chain)?;
-        // giọng đọc → WAV tạm, FFmpeg trộn vào video
-        let wav = std::env::temp_dir().join(format!("wb-export-{}.wav", std::process::id()));
-        let audio = match narration_track(&narration, engine.timeline()) {
-            Some(pcm) => {
-                wb_audio::wav::write(&wav, &pcm, wb_audio::SAMPLE_RATE).map_err(err)?;
-                Some(wav.clone())
-            }
-            None => None,
-        };
         let opts = wb_export::ExportOptions {
             fps: project.settings.fps,
             cancel,
-            audio,
+            audio: files.audio.clone(),
+            subtitles: files.subtitles.clone(),
             ..Default::default()
         };
         let mut last = Instant::now();
@@ -404,7 +401,7 @@ pub async fn export_video(
                 let _ = on_event.send(ExportEvent::Progress { frame, total });
             }
         });
-        let _ = std::fs::remove_file(&wav);
+        files.cleanup();
         let stats = res.map_err(err)?;
         let _ = on_event.send(ExportEvent::Done {
             path: out,

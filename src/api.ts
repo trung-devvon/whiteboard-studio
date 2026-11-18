@@ -94,10 +94,18 @@ export const api = {
     return invoke<NarrateSummary>("narration_generate", { root, project, onEvent: ch });
   },
 
-  exportVideo(root: string, project: Project, out: string, width: number | null, onEvent: (e: ExportEvent) => void) {
+  /** Xuất MP4. `subtitles`: ghi `<video>.srt` và nhúng phụ đề vào MP4 (nếu có lời thoại đã tạo giọng). */
+  exportVideo(
+    root: string,
+    project: Project,
+    out: string,
+    width: number | null,
+    subtitles: boolean,
+    onEvent: (e: ExportEvent) => void,
+  ) {
     const ch = new Channel<ExportEvent>();
     ch.onmessage = onEvent;
-    return invoke<void>("export_video", { root, project, out, width, onEvent: ch });
+    return invoke<void>("export_video", { root, project, out, width, subtitles, onEvent: ch });
   },
   exportCancel: () => invoke<void>("export_cancel"),
 };

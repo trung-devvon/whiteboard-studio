@@ -15,6 +15,8 @@ type Phase =
 export default function ExportDialog({ root, project, onClose }: { root: string; project: Project; onClose: () => void }) {
   const projectW = project.settings?.width ?? 1920;
   const [width, setWidth] = useState(projectW);
+  const [subtitles, setSubtitles] = useState(true);
+  const hasNarration = project.scenes.some((s) => s.narration?.trim());
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
   const running = phase.k === "preparing" || phase.k === "running";
 
@@ -27,7 +29,7 @@ export default function ExportDialog({ root, project, onClose }: { root: string;
     if (!out) return;
     setPhase({ k: "preparing" });
     try {
-      await api.exportVideo(root, project, out, width === projectW ? null : width, (e) => {
+      await api.exportVideo(root, project, out, width === projectW ? null : width, subtitles && hasNarration, (e) => {
         if (e.type === "preparing") setPhase({ k: "preparing" });
         else if (e.type === "progress") setPhase({ k: "running", frame: e.frame, total: e.total });
         else setPhase({ k: "done", path: e.path, seconds: e.seconds, encoder: e.encoder });
@@ -53,6 +55,20 @@ export default function ExportDialog({ root, project, onClose }: { root: string;
             ))}
           </select>
         </label>
+        <label className="field">
+          <span>Phụ đề</span>
+          <input
+            type="checkbox"
+            checked={subtitles && hasNarration}
+            disabled={running || !hasNarration}
+            onChange={(e) => setSubtitles(e.target.checked)}
+          />
+        </label>
+        <p className="hint small">
+          {hasNarration
+            ? "Phụ đề lấy từ lời thoại: nhúng vào video (bật/tắt được khi xem) và ghi thêm file .srt cạnh video để tải lên YouTube."
+            : "Chưa có lời thoại nên không có phụ đề."}
+        </p>
 
         {phase.k !== "idle" && (
           <div className="progress">
@@ -62,7 +78,8 @@ export default function ExportDialog({ root, project, onClose }: { root: string;
         <p className="status">
           {phase.k === "preparing" && "Đang phân tích ảnh và chuẩn bị…"}
           {phase.k === "running" && `Khung ${phase.frame}/${phase.total} (${pct.toFixed(0)}%)`}
-          {phase.k === "done" && `Xong trong ${phase.seconds.toFixed(1)} s (encoder ${phase.encoder}).`}
+          {phase.k === "done" &&
+            `Xong trong ${phase.seconds.toFixed(1)} s (encoder ${phase.encoder}).${subtitles && hasNarration ? " Đã ghi kèm file phụ đề .srt." : ""}`}
           {phase.k === "error" && <span className="err">{phase.message}</span>}
         </p>
 

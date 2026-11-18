@@ -37,6 +37,23 @@ pub struct ProjectSettings {
     pub hand_scale: f32,
     /// Giọng đọc lời thoại (Giai đoạn 4).
     pub voice: VoiceSettings,
+    /// Âm thanh khác: tiếng bút…
+    pub sound: SoundSettings,
+}
+
+/// Âm thanh đi kèm nét vẽ.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(default)]
+pub struct SoundSettings {
+    /// Âm lượng tiếng bút (0 = tắt, 1 = bình thường, tối đa 2).
+    pub pen_volume: f32,
+}
+
+impl Default for SoundSettings {
+    fn default() -> Self {
+        Self { pen_volume: 1.0 }
+    }
 }
 
 /// Giọng đọc lời thoại.
@@ -89,6 +106,7 @@ impl Default for ProjectSettings {
             hand_mode: HandMode::Wrist,
             hand_scale: 1.0,
             voice: VoiceSettings::default(),
+            sound: SoundSettings::default(),
         }
     }
 }
