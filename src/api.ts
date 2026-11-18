@@ -15,6 +15,7 @@ export type HandMeta = {
   wrist?: [[number, number], [number, number]] | null;
   [extra: string]: unknown;
 };
+export type SampleInfo = { id: string; title: string; description: string };
 export type IconHit = { name: string; src: string; svg: string };
 export type HandDetail ={ meta: HandMeta; width: number; height: number; editable: boolean };
 
@@ -49,7 +50,9 @@ export type ExportEvent =
   | { type: "done"; path: string; seconds: number; encoder: string };
 
 export const api = {
-  create: (path: string, sample = false) => invoke<Opened>("project_create", { path, sample }),
+  /** Tạo dự án; `sample` = id dự án mẫu (xem `samples`), null = dự án trống. */
+  create: (path: string, sample: string | null = null) => invoke<Opened>("project_create", { path, sample }),
+  samples: () => invoke<SampleInfo[]>("samples_list"),
   open: (path: string) => invoke<Opened>("project_open", { path }),
   save: (root: string, project: Project) => invoke<void>("project_save", { root, project }),
   autosave: (root: string, project: Project) => invoke<void>("project_autosave", { root, project }),

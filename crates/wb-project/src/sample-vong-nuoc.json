@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "settings": { "hand": "builtin:hands/pencil-green", "hand_mode": "wrist", "voice": { "name": "vi-VN-NamMinhNeural", "rate": 1.0 } },
+  "scenes": [
+    {
+      "id": "s1",
+      "name": "Vòng tuần hoàn",
+      "elements": [
+        {
+          "id": "tieu-de",
+          "kind": { "type": "text", "text": "Vòng tuần hoàn của nước", "size": 88, "color": "#2F6FED", "align": "center" },
+          "transform": { "x": 160, "y": 40, "w": 1600, "h": 150 },
+          "timing": { "gap_before_ms": 300, "settle_ms": 200 }
+        },
+        {
+          "id": "bien",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/waves.svg", "tint": "#2F6FED" },
+          "transform": { "x": 140, "y": 740, "w": 360, "h": 260 }
+        },
+        {
+          "id": "mat-troi",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/sun.svg", "tint": "#E8833A" },
+          "transform": { "x": 160, "y": 260, "w": 320, "h": 320 }
+        },
+        {
+          "id": "boc-hoi",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/arrow-up.svg" },
+          "transform": { "x": 600, "y": 560, "w": 160, "h": 280 },
+          "timing": { "gap_before_ms": 150, "settle_ms": 100 }
+        },
+        {
+          "id": "may",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/cloud.svg", "tint": "#2F6FED" },
+          "transform": { "x": 820, "y": 250, "w": 380, "h": 300 }
+        },
+        {
+          "id": "gio",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/arrow-right.svg" },
+          "transform": { "x": 1250, "y": 330, "w": 200, "h": 150 },
+          "timing": { "gap_before_ms": 150, "settle_ms": 100 }
+        },
+        {
+          "id": "mua",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/cloud-rain.svg", "tint": "#2F6FED" },
+          "transform": { "x": 1500, "y": 240, "w": 320, "h": 320 }
+        },
+        {
+          "id": "nui",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/mountain.svg", "tint": "#2E8B57" },
+          "transform": { "x": 1260, "y": 660, "w": 520, "h": 360 }
+        }
+      ],
+      "tail_ms": 1000,
+      "narration": "[1] Nước trên Trái Đất luôn đi theo một vòng tuần hoàn. [2] Nước ở biển [3] được Mặt Trời sưởi ấm, [4] bốc hơi bay lên cao [5] rồi ngưng tụ thành mây. [6] Gió đưa mây vào đất liền, [7] mây gặp lạnh tạo thành mưa, [8] nước mưa chảy từ núi về lại biển."
+    },
+    {
+      "id": "s2",
+      "name": "Ghi nhớ",
+      "elements": [
+        {
+          "id": "giot-nuoc",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/droplets.svg", "tint": "#2F6FED" },
+          "transform": { "x": 780, "y": 120, "w": 360, "h": 360 }
+        },
+        {
+          "id": "ghi-nho",
+          "kind": { "type": "text", "text": "Bốc hơi - Ngưng tụ - Mưa - Chảy về biển", "size": 72, "align": "center" },
+          "transform": { "x": 120, "y": 600, "w": 1680, "h": 260 }
+        }
+      ],
+      "tail_ms": 1500,
+      "narration": "[1] Hãy nhớ bốn bước: [2] bốc hơi, ngưng tụ, mưa, và chảy về biển. Vòng tuần hoàn cứ thế lặp lại mãi mãi."
+    }
+  ]
+}

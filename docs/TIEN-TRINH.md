@@ -18,6 +18,8 @@
 ## 2. App hiện có những tính năng gì
 
 **Dự án**
+- **3 dự án mẫu** trên màn hình chào: *Bài học đầu tiên*, *3 bước tiết kiệm tiền*, *Vòng tuần hoàn của nước*. Cả 3 đều có sẵn lời thoại.
+- Tài liệu bàn giao cho phiên mới hoặc AI khác: `AGENTS.md` và `docs/BAN-GIAO.md`.
 - Màn hình chào gồm 3 lựa chọn:
   - "Thử dự án mẫu": tạo sẵn 2 cảnh để xem ngay;
   - "Dự án mới";

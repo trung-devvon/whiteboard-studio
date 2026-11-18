@@ -245,7 +245,44 @@ pub fn new_project() -> Project {
 
 /// Dự án mẫu (2 cảnh: chữ + bóng đèn, ngôi nhà + chú thích) dùng ảnh có sẵn của app — để thử nhanh.
 pub fn sample_project() -> Project {
-    serde_json::from_str(include_str!("sample.json")).expect("sample.json hợp lệ")
+    sample(SAMPLES[0].id).expect("mẫu đầu tiên luôn có")
+}
+
+/// Một dự án mẫu có sẵn (màn hình chào → "Dự án mẫu").
+#[derive(Debug, Clone, Copy, serde::Serialize)]
+pub struct SampleInfo {
+    pub id: &'static str,
+    pub title: &'static str,
+    pub description: &'static str,
+    json: &'static str,
+}
+
+/// Các dự án mẫu (chỉ dùng tài nguyên `builtin:` → mở được ở mọi máy). Mẫu đầu = mặc định.
+pub const SAMPLES: &[SampleInfo] = &[
+    SampleInfo {
+        id: "bai-hoc",
+        title: "Bài học đầu tiên",
+        description: "2 cảnh: chữ viết tay, bóng đèn, ngôi nhà tô màu.",
+        json: include_str!("sample.json"),
+    },
+    SampleInfo {
+        id: "tiet-kiem",
+        title: "3 bước tiết kiệm tiền",
+        description: "3 cảnh: icon đổi màu, mũi tên, lời thoại khớp từng bước.",
+        json: include_str!("sample-tiet-kiem.json"),
+    },
+    SampleInfo {
+        id: "vong-nuoc",
+        title: "Vòng tuần hoàn của nước",
+        description: "2 cảnh: sơ đồ 8 hình vẽ theo lời, bút chì, giọng nam.",
+        json: include_str!("sample-vong-nuoc.json"),
+    },
+];
+
+/// Dự án mẫu theo `id` (xem [`SAMPLES`]).
+pub fn sample(id: &str) -> Option<Project> {
+    let s = SAMPLES.iter().find(|s| s.id == id)?;
+    Some(serde_json::from_str(s.json).unwrap_or_else(|e| panic!("mẫu {} hỏng: {e}", s.id)))
 }
 
 pub fn new_scene(n: usize) -> Scene {

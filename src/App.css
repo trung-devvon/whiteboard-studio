@@ -141,6 +141,22 @@ button.danger:hover:not(:disabled) {
   color: var(--white);
   font-weight: 400;
 }
+.samples {
+  width: min(700px, 100%);
+  margin-top: 20px;
+}
+.samples h3 {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.sample-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+}
+.sample-list .card {
+  width: auto;
+}
 .recent {
   width: min(680px, 100%);
   margin-top: 20px;

@@ -240,3 +240,30 @@ fn narration_markers_anchor_elements_and_build_audio_track() {
     assert!(srt.starts_with("1\n00:00:00,200 --> "), "{srt}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Mọi dự án mẫu trên màn hình chào biên dịch được, phủ đủ nét, và dấu `[n]` trong lời thoại đều trỏ tới element có thật.
+#[test]
+fn every_sample_project_compiles_and_markers_point_to_elements() {
+    let ctx = CompileContext::new(std::env::temp_dir());
+    assert!(wb_project::SAMPLES.len() >= 3);
+    for s in wb_project::SAMPLES {
+        let project = wb_project::sample(s.id).unwrap();
+        let p = prepare(&project, &ctx, None).unwrap_or_else(|e| panic!("mẫu {}: {e:#}", s.id));
+        assert!(p.report.iter().all(|r| r.coverage >= 0.98), "mẫu {}: phủ thiếu", s.id);
+        for n in &p.narration {
+            assert_ne!(
+                n.state,
+                wb_compile::NarrationState::None,
+                "mẫu {}: cảnh {} thiếu lời thoại",
+                s.id,
+                n.scene
+            );
+            assert!(
+                n.unknown_markers.is_empty(),
+                "mẫu {}: dấu sai {:?}",
+                s.id,
+                n.unknown_markers
+            );
+        }
+    }
+}

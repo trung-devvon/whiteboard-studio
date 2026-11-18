@@ -64,17 +64,16 @@ pub struct OpenedDto {
     recovery: Option<Project>,
 }
 
-/// Tạo dự án mới (thư mục `*.wbproj`). `sample` = điền sẵn dự án mẫu để thử.
+/// Tạo dự án mới (thư mục `*.wbproj`). `sample` = id dự án mẫu để điền sẵn (xem `samples_list`).
 #[tauri::command]
-pub fn project_create(path: String, sample: bool) -> CmdResult<OpenedDto> {
+pub fn project_create(path: String, sample: Option<String>) -> CmdResult<OpenedDto> {
     let mut root = PathBuf::from(path);
     if root.extension().is_none_or(|e| e != wb_project::EXTENSION) {
         root.set_extension(wb_project::EXTENSION);
     }
-    let project = if sample {
-        wb_project::sample_project()
-    } else {
-        wb_project::new_project()
+    let project = match sample.as_deref() {
+        Some(id) => wb_project::sample(id).ok_or_else(|| format!("không có dự án mẫu \"{id}\""))?,
+        None => wb_project::new_project(),
     };
     let dir = ProjectDir::create(&root, &project).map_err(err)?;
     Ok(OpenedDto {
@@ -421,6 +420,12 @@ pub fn export_cancel(state: State<'_, AppState>) {
     if let Some(c) = state.export_cancel.lock().unwrap().as_ref() {
         c.store(true, Ordering::Relaxed);
     }
+}
+
+/// Danh sách dự án mẫu có sẵn.
+#[tauri::command]
+pub fn samples_list() -> Vec<wb_project::SampleInfo> {
+    wb_project::SAMPLES.to_vec()
 }
 
 // ───────────────────────── Giọng đọc (Giai đoạn 4) ─────────────────────────

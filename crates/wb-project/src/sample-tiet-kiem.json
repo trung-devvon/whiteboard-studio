@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "settings": { "hand": "builtin:hands/pen-brown", "hand_mode": "wrist" },
+  "scenes": [
+    {
+      "id": "s1",
+      "name": "Mục tiêu",
+      "elements": [
+        {
+          "id": "tieu-de",
+          "kind": { "type": "text", "text": "3 bước tiết kiệm tiền", "size": 96, "align": "center" },
+          "transform": { "x": 160, "y": 80, "w": 1600, "h": 180 },
+          "timing": { "gap_before_ms": 300, "settle_ms": 200 }
+        },
+        {
+          "id": "heo-dat",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/piggy-bank.svg", "tint": "#E8833A" },
+          "transform": { "x": 710, "y": 330, "w": 500, "h": 500 }
+        }
+      ],
+      "tail_ms": 800,
+      "narration": "[1] Hôm nay mình chia sẻ ba bước tiết kiệm tiền thật đơn giản. [2] Mục tiêu là chú heo đất lúc nào cũng đầy."
+    },
+    {
+      "id": "s2",
+      "name": "Ba bước",
+      "elements": [
+        {
+          "id": "vi",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/wallet.svg", "tint": "#2F6FED" },
+          "transform": { "x": 140, "y": 300, "w": 340, "h": 340 }
+        },
+        {
+          "id": "mui-ten-1",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/arrow-right.svg" },
+          "transform": { "x": 560, "y": 390, "w": 180, "h": 160 },
+          "timing": { "gap_before_ms": 150, "settle_ms": 100 }
+        },
+        {
+          "id": "dong-xu",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/coins.svg", "tint": "#C99A06" },
+          "transform": { "x": 790, "y": 300, "w": 340, "h": 340 }
+        },
+        {
+          "id": "mui-ten-2",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/arrow-right.svg" },
+          "transform": { "x": 1210, "y": 390, "w": 180, "h": 160 },
+          "timing": { "gap_before_ms": 150, "settle_ms": 100 }
+        },
+        {
+          "id": "tang-truong",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/trending-up.svg", "tint": "#2E8B57" },
+          "transform": { "x": 1440, "y": 300, "w": 340, "h": 340 }
+        },
+        {
+          "id": "chu-thich",
+          "kind": { "type": "text", "text": "Ghi chép  -  Để dành  -  Đầu tư", "size": 68, "align": "center" },
+          "transform": { "x": 120, "y": 740, "w": 1680, "h": 140 }
+        }
+      ],
+      "tail_ms": 800,
+      "narration": "[1] Bước một, ghi chép lại mọi khoản chi tiêu. [3] Bước hai, để dành ít nhất mười phần trăm thu nhập. [5] Bước ba, cho số tiền đó sinh lời. [6] Ghi chép, để dành, rồi đầu tư."
+    },
+    {
+      "id": "s3",
+      "name": "Kết luận",
+      "elements": [
+        {
+          "id": "dau-tick",
+          "kind": { "type": "image", "src": "builtin:icons/lucide/icons/circle-check.svg", "tint": "#2E8B57" },
+          "transform": { "x": 760, "y": 140, "w": 400, "h": 400 }
+        },
+        {
+          "id": "loi-ket",
+          "kind": { "type": "text", "text": "Bắt đầu ngay hôm nay!", "size": 104, "color": "#D63A2F", "align": "center" },
+          "transform": { "x": 160, "y": 640, "w": 1600, "h": 180 }
+        }
+      ],
+      "tail_ms": 1500,
+      "narration": "[1] Chỉ cần kiên trì mỗi ngày, bạn sẽ thấy kết quả. [2] Hãy bắt đầu ngay hôm nay!"
+    }
+  ]
+}

@@ -52,6 +52,12 @@ export async function installMock() {
         return { root: "C:/demo/demo-phase2.wbproj", project, recovery: null };
       case "compile_preview":
         return pack(a.project as Parameters<typeof pack>[0]);
+      case "samples_list":
+        return [
+          { id: "bai-hoc", title: "Bài học đầu tiên", description: "2 cảnh: chữ viết tay, bóng đèn, ngôi nhà tô màu." },
+          { id: "tiet-kiem", title: "3 bước tiết kiệm tiền", description: "3 cảnh: icon đổi màu, mũi tên, lời thoại khớp từng bước." },
+          { id: "vong-nuoc", title: "Vòng tuần hoàn của nước", description: "2 cảnh: sơ đồ 8 hình vẽ theo lời, bút chì, giọng nam." },
+        ];
       case "voice_status":
         return { configured: false, source: null, region: null };
       case "voice_save":

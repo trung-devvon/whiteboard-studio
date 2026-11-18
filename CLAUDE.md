@@ -1,5 +1,7 @@
 # Whiteboard Studio — guide for AI assistants
 
+> Start with `AGENTS.md` (architecture, pipeline, commands) and `docs/BAN-GIAO.md` (status, next steps, how to work with the owner). This file lists the hard rules.
+
 - **Talk to the user in Vietnamese.** Code identifiers in English; code comments and internal docs (`docs/`) may be Vietnamese. `README.md` and this file stay in English.
 - The master plan lives in `not_push_git/` (files 00–09, git-ignored). Accepted decisions: `docs/adr/`. Progress: `not_push_git/06-lo-trinh-va-tieu-chi-hoan-thanh.md`.
 - Current phase: **Phase 4 (narration & sync) in progress** (`docs/giai-doan-4/`); Phase 3 editor mostly done (`docs/giai-doan-3/`). TTS = Azure AI Speech via the official WebSocket endpoint and the user's key (ADR-0012); default voice `vi-VN-HoaiMyNeural`. Key: OS keyring (`wb_audio::credentials`) or `WB_AZURE_SPEECH_KEY`/`WB_AZURE_SPEECH_REGION` in the git-ignored `.env` — never print or commit it. `cargo test -p wb-audio -- --ignored` calls Azure for real (uses quota). User-facing progress summary: `docs/TIEN-TRINH.md` (keep it short, Vietnamese).

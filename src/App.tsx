@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ask, open, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useStore } from "zustand";
-import { api, errorText, type ElementInfo, type HandEntry, type NarrationInfo } from "./api";
+import { api, errorText, type ElementInfo, type HandEntry, type NarrationInfo, type SampleInfo } from "./api";
 import { Preview } from "./player";
 import { forgetProject, recentProjects, rememberProject } from "./recent";
 import { clearHistory, redo, undo, useEditor } from "./store";
@@ -42,9 +42,9 @@ async function openProject(path: string) {
 }
 
 /** Tạo dự án: chọn nơi lưu thư mục `.wbproj` (trống hoặc điền sẵn dự án mẫu). */
-async function newProject(sample: boolean) {
+async function newProject(sample: string | null) {
   const path = await saveDialog({
-    defaultPath: sample ? "du-an-mau.wbproj" : "bai-hoc.wbproj",
+    defaultPath: sample ? `mau-${sample}.wbproj` : "bai-hoc.wbproj",
     title: "Chọn nơi lưu dự án (app sẽ tạo một thư mục .wbproj)",
   });
   if (!path) return;
@@ -62,6 +62,10 @@ async function pickAndOpen() {
 function Welcome() {
   const [err, setErr] = useState<string | null>(null);
   const [recent, setRecent] = useState(recentProjects);
+  const [samples, setSamples] = useState<SampleInfo[]>([]);
+  useEffect(() => {
+    api.samples().then(setSamples).catch(() => {});
+  }, []);
   const run = (f: () => Promise<void>) => () => {
     setErr(null);
     f().catch((e) => setErr(errorText(e)));
@@ -80,11 +84,11 @@ function Welcome() {
       <p className="muted">Tạo video "bàn tay vẽ trên bảng trắng" từ ảnh và chữ.</p>
 
       <div className="welcome-cards">
-        <button className="card primary" onClick={run(() => newProject(true))}>
+        <button className="card primary" onClick={run(() => newProject(samples[0]?.id ?? "bai-hoc"))}>
           <strong>Thử dự án mẫu</strong>
-          <span>Tạo sẵn 2 cảnh có chữ và hình — bấm ▶ để xem ngay.</span>
+          <span>Tạo sẵn dự án có chữ, hình và lời thoại — bấm ▶ để xem ngay.</span>
         </button>
-        <button className="card" onClick={run(() => newProject(false))}>
+        <button className="card" onClick={run(() => newProject(null))}>
           <strong>Dự án mới</strong>
           <span>Bắt đầu với một cảnh trống.</span>
         </button>
@@ -93,6 +97,20 @@ function Welcome() {
           <span>Chọn một thư mục .wbproj đã có.</span>
         </button>
       </div>
+
+      {samples.length > 1 && (
+        <section className="samples">
+          <h3>Các dự án mẫu</h3>
+          <div className="sample-list">
+            {samples.map((s) => (
+              <button key={s.id} className="card" onClick={run(() => newProject(s.id))}>
+                <strong>{s.title}</strong>
+                <span>{s.description}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {recent.length > 0 && (
         <section className="recent">
@@ -379,7 +397,7 @@ function Editor() {
         <button onClick={leave(async () => useEditor.getState().close())} title="Về màn hình chào">
           ⌂
         </button>
-        <button onClick={leave(() => newProject(false))}>Mới</button>
+        <button onClick={leave(() => newProject(null))}>Mới</button>
         <button onClick={leave(pickAndOpen)}>Mở</button>
         <button onClick={() => void save().catch(() => {})} disabled={!dirty} title="Ctrl+S">
           Lưu
